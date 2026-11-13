@@ -1,0 +1,31 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Ambiente virtual
+.venv/
+venv/
+
+# Segurança
+.env
+.env.*
+!.env.example
+
+# Frontend
+node_modules/
+.next/
+out/
+
+# Banco de dados
+*.sqlite3
+*.db
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Editores
+.vscode/
+.idea/
