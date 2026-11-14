@@ -161,3 +161,12 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     senha: str
+
+class NoticiaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    titulo: str
+    url: str | None
+    resumo: str | None
+    publicado_em: datetime
+    fonte_nome: str | None

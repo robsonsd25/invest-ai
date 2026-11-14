@@ -1,7 +1,5 @@
 """
 Router de posicoes do INVEST AI.
-Calcula a custodia atual (o que a carteira possui) com base no historico
-de operacoes simuladas e calcula o P&L (Lucro/Prejuizo) usando a cotacao mais recente.
 """
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,16 +7,21 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Ativo, Carteira, Cotacao, OperacaoSimulada
+from app.models import Ativo, Carteira, Cotacao, OperacaoSimulada, Usuario
+from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/carteiras", tags=["posicoes"])
 
-
 @router.get("/{carteira_id}/posicoes")
-def listar_posicoes(carteira_id: int, db: Session = Depends(get_db)):
+def listar_posicoes(
+    carteira_id: int, 
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
     carteira = db.get(Carteira, carteira_id)
-    if not carteira:
-        raise HTTPException(status_code=404, detail="Carteira nao encontrada.")
+    # TRAVA DE SEGURANCA: Verifica se a carteira pertence ao usuario logado
+    if not carteira or carteira.usuario_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Acesso negado a esta carteira.")
 
     operacoes = db.scalars(
         select(OperacaoSimulada)
@@ -38,19 +41,14 @@ def listar_posicoes(carteira_id: int, db: Session = Depends(get_db)):
     for op in operacoes:
         ativo_id = op.ativo_id
         if ativo_id not in posicoes_dict:
-            posicoes_dict[ativo_id] = {
-                "quantidade": Decimal("0"),
-                "custo_total": Decimal("0")
-            }
+            posicoes_dict[ativo_id] = {"quantidade": Decimal("0"), "custo_total": Decimal("0")}
         
         if op.tipo == "COMPRA":
             posicoes_dict[ativo_id]["quantidade"] += op.quantidade
             posicoes_dict[ativo_id]["custo_total"] += (op.quantidade * op.preco_unitario)
         elif op.tipo == "VENDA":
             posicoes_dict[ativo_id]["quantidade"] -= op.quantidade
-            if posicoes_dict[ativo_id]["quantidade"] > 0:
-                pass
-            else:
+            if posicoes_dict[ativo_id]["quantidade"] <= 0:
                 posicoes_dict[ativo_id]["custo_total"] = Decimal("0")
 
     resultado = []
@@ -58,17 +56,11 @@ def listar_posicoes(carteira_id: int, db: Session = Depends(get_db)):
         if dados["quantidade"] > 0:
             ativo = db.get(Ativo, ativo_id)
             
-            # Busca a cotacao mais recente no banco
             cotacao_recente = db.scalar(
-                select(Cotacao)
-                .where(Cotacao.ativo_id == ativo_id)
-                .order_by(Cotacao.data.desc())
-                .limit(1)
+                select(Cotacao).where(Cotacao.ativo_id == ativo_id).order_by(Cotacao.data.desc()).limit(1)
             )
             
             preco_medio = dados["custo_total"] / dados["quantidade"]
-            
-            # Se tiver cotacao, usa. Se nao, assume o preco medio para nao quebrar
             preco_atual = float(cotacao_recente.fechamento) if (cotacao_recente and cotacao_recente.fechamento) else float(preco_medio)
             
             valor_atual = float(dados["quantidade"]) * preco_atual

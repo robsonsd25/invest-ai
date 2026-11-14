@@ -1,26 +1,29 @@
 """
 Router de Extrato da Carteira.
-Devolve o histórico completo de operações simuladas com os dados do ativo.
 """
 from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Ativo, Carteira, OperacaoSimulada
+from app.models import Ativo, Carteira, OperacaoSimulada, Usuario
 from app.schemas import OperacaoExtratoOut
+from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/carteiras", tags=["extrato"])
 
 @router.get("/{carteira_id}/extrato", response_model=List[OperacaoExtratoOut])
-def obter_extrato(carteira_id: int, db: Session = Depends(get_db)):
+def obter_extrato(
+    carteira_id: int, 
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
     carteira = db.get(Carteira, carteira_id)
-    if not carteira:
-        raise HTTPException(status_code=404, detail="Carteira nao encontrada.")
+    # TRAVA DE SEGURANCA
+    if not carteira or carteira.usuario_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Acesso negado a esta carteira.")
 
-    # Busca todas as operações, da mais recente para a mais antiga (ordem decrescente)
     operacoes = db.execute(
         select(OperacaoSimulada, Ativo)
         .join(Ativo, OperacaoSimulada.ativo_id == Ativo.id)
@@ -43,5 +46,4 @@ def obter_extrato(carteira_id: int, db: Session = Depends(get_db)):
                 origem=op.origem
             )
         )
-
     return resultado
