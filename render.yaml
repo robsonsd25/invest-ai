@@ -3,12 +3,12 @@ services:
     name: invest-ai-backend
     runtime: python
     plan: free
+    region: oregon
     buildCommand: "pip install -r requirements.txt"
-    # O Alembic precisa rodar antes de subir o uvicorn para criar as tabelas no banco novo
-    startCommand: "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: "python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: SECRET_KEY
-        generateValue: true # O Render gera uma senha segura automaticamente
+        generateValue: true
       - key: DB_HOST
         fromDatabase:
           name: invest-ai-db
@@ -30,7 +30,7 @@ services:
           name: invest-ai-db
           property: password
       - key: PYTHON_VERSION
-        value: 3.13.0
+        value: "3.13.0"
 
 databases:
   - name: invest-ai-db
