@@ -3,6 +3,7 @@ INVEST AI - Backend FastAPI.
 Fase: analise e simulacao. Sem ordens reais, sem alavancagem.
 """
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
     analises, ativos, carteiras, health, indicadores, mercados, perfis, simulador, posicoes
@@ -12,6 +13,16 @@ app = FastAPI(
     title="INVEST AI",
     description="Plataforma de inteligencia e analise de investimentos",
     version="1.0.0",
+)
+
+# --- CONFIGURACAO DE CORS ---
+# Permite que o Frontend (porta 3000) acesse o Backend (porta 8000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/", tags=["sistema"])
