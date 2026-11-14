@@ -6,13 +6,16 @@ from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from dotenv import load_dotenv
+from app.config import settings
 
-# 1. Tenta pegar a URL do Render/Neon
+load_dotenv()
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# 2. Se nao existir, monta a URL local
 if not DATABASE_URL:
-    from app.config import settings
+    if not settings.DB_PASSWORD:
+        raise ValueError("DB_PASSWORD nao configurada e DATABASE_URL nao fornecida.")
     DATABASE_URL = (
         f"postgresql+psycopg2://{settings.DB_USER}:{quote_plus(settings.DB_PASSWORD)}"
         f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"

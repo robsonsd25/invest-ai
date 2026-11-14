@@ -1,6 +1,3 @@
-"""
-Configuracao do Alembic para o INVEST AI.
-"""
 import os
 import sys
 from logging.config import fileConfig
@@ -8,28 +5,33 @@ from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from app.models import Base  # noqa: E402
 
-config = context.config
+load_dotenv()
 
+config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# 1. Tenta pegar a URL do Render/Neon
+# Tenta pegar do Render/Neon
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# 2. Se nao existir, monta a URL local (do seu PC)
+# Se nao tiver (ambiente local), monta a URL manualmente
 if not DATABASE_URL:
-    from app.config import settings
-    DATABASE_URL = (
-        f"postgresql+psycopg2://{settings.DB_USER}:{settings.DB_PASSWORD}"
-        f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-    )
+    db_host = os.getenv("DB_HOST", "localhost")
+    db_port = os.getenv("DB_PORT", "5432")
+    db_name = os.getenv("DB_NAME", "invest_ai")
+    db_user = os.getenv("DB_USER", "postgres")
+    db_pass = os.getenv("DB_PASSWORD")
+    
+    if not db_pass:
+        raise ValueError("DB_PASSWORD nao configurada e DATABASE_URL nao fornecida.")
+        
+    DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
-# O replace("%", "%%") evita bugs se a senha tiver o caractere '%'
 config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 target_metadata = Base.metadata
