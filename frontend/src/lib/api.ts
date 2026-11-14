@@ -34,31 +34,6 @@ export interface OperacaoPayload {
   preco_unitario: number;
 }
 
-export async function getCarteiras(): Promise<Carteira[]> {
-  const res = await fetch(`${API_URL}/carteiras`, { cache: 'no-store' });
-  if (!res.ok) throw new Error("Erro ao buscar carteiras");
-  return res.json();
-}
-
-export async function getPosicoes(carteiraId: string | number): Promise<CarteiraDetalhe> {
-  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/posicoes`, { cache: 'no-store' });
-  if (!res.ok) throw new Error("Erro ao buscar posicoes");
-  return res.json();
-}
-
-export async function executarOperacao(carteiraId: string | number, dados: OperacaoPayload) {
-  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/operacoes`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(dados),
-  });
-
-  if (!res.ok) {
-    const erro = await res.json();
-    throw new Error(erro.detail || "Erro ao executar operação");
-  }
-  return res.json();
-}
 export interface Indicadores {
   ticker: string;
   nome: string;
@@ -83,6 +58,40 @@ export interface Analise {
   versao_modelo: string;
 }
 
+export interface Cotacao {
+  data: string;
+  abertura: string | null;
+  maxima: string | null;
+  minima: string | null;
+  fechamento: string | null;
+  volume: number | null;
+}
+
+export async function getCarteiras(): Promise<Carteira[]> {
+  const res = await fetch(`${API_URL}/carteiras`, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao buscar carteiras");
+  return res.json();
+}
+
+export async function getPosicoes(carteiraId: string | number): Promise<CarteiraDetalhe> {
+  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/posicoes`, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao buscar posicoes");
+  return res.json();
+}
+
+export async function executarOperacao(carteiraId: string | number, dados: OperacaoPayload) {
+  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/operacoes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  if (!res.ok) {
+    const erro = await res.json();
+    throw new Error(erro.detail || "Erro ao executar operação");
+  }
+  return res.json();
+}
+
 export async function getIndicadores(ticker: string): Promise<Indicadores> {
   const res = await fetch(`${API_URL}/ativos/${ticker}/indicadores`, { cache: 'no-store' });
   if (!res.ok) throw new Error("Ativo não encontrado ou dados insuficientes.");
@@ -95,5 +104,11 @@ export async function gerarAnalise(ticker: string): Promise<Analise> {
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error("Erro ao gerar análise.");
+  return res.json();
+}
+
+export async function getCotacoes(ticker: string): Promise<Cotacao[]> {
+  const res = await fetch(`${API_URL}/ativos/${ticker}/cotacoes?limit=60`, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao buscar histórico de preços.");
   return res.json();
 }

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
-    analises, ativos, carteiras, health, indicadores, mercados, perfis, simulador, posicoes
+    analises, ativos, carteiras, health, indicadores, mercados, perfis, simulador, posicoes, cotacoes
 )
 
 app = FastAPI(
@@ -15,8 +15,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# --- CONFIGURACAO DE CORS ---
-# Permite que o Frontend (porta 3000) acesse o Backend (porta 8000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -40,6 +38,7 @@ app.include_router(perfis.router)
 app.include_router(ativos.router)
 app.include_router(indicadores.router)
 app.include_router(analises.router)
+app.include_router(cotacoes.router)
 app.include_router(carteiras.router)
 app.include_router(simulador.router)
 app.include_router(posicoes.router)

@@ -2,7 +2,7 @@
 Schemas Pydantic do INVEST AI.
 Definem o formato das respostas da API.
 """
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -81,7 +81,6 @@ class AnaliseOut(BaseModel):
     gerada_em: datetime
     validada: bool
 
-# NOVOS SCHEMAS PARA SIMULACAO
 class OperacaoCreate(BaseModel):
     ticker: str = Field(..., description="Ticker do ativo (ex: PETR4)")
     tipo: str = Field(..., description="COMPRA ou VENDA")
@@ -107,4 +106,12 @@ class CarteiraResumoOut(BaseModel):
     nome: str
     saldo_caixa: Decimal
     capital_inicial: Decimal
-    # (Em versoes futuras, adicionaremos o valor das posicoes em custodia aqui)
+
+class CotacaoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    data: date
+    abertura: Decimal | None
+    maxima: Decimal | None
+    minima: Decimal | None
+    fechamento: Decimal | None
+    volume: int | None
