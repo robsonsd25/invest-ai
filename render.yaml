@@ -35,5 +35,5 @@ services:
 databases:
   - name: invest-ai-db
     plan: free
-    databaseName: invest_ai
-    user: postgres
+    databaseName: invest_ai_db
+    user: invest_ai_user
