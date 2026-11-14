@@ -1,7 +1,7 @@
 """
 Configuracao do Alembic para o INVEST AI.
-Le a URL do banco do .env (via app.config) e usa o metadata dos models.
 """
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -9,10 +9,8 @@ from pathlib import Path
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-# Garante que 'app' seja importavel ao rodar alembic de dentro de backend/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.config import settings  # noqa: E402
 from app.models import Base  # noqa: E402
 
 config = context.config
@@ -20,18 +18,23 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# URL do banco montada a partir do .env
-DATABASE_URL = (
-    f"postgresql+psycopg2://{settings.DB_USER}:{settings.DB_PASSWORD}"
-    f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-)
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# 1. Tenta pegar a URL do Render/Neon
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# 2. Se nao existir, monta a URL local (do seu PC)
+if not DATABASE_URL:
+    from app.config import settings
+    DATABASE_URL = (
+        f"postgresql+psycopg2://{settings.DB_USER}:{settings.DB_PASSWORD}"
+        f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+    )
+
+# O replace("%", "%%") evita bugs se a senha tiver o caractere '%'
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 target_metadata = Base.metadata
 
-
 def run_migrations_offline() -> None:
-    """Roda as migracoes gerando SQL (sem conectar)."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -42,9 +45,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
-
 def run_migrations_online() -> None:
-    """Roda as migracoes conectando no banco."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
@@ -58,7 +59,6 @@ def run_migrations_online() -> None:
         )
         with context.begin_transaction():
             context.run_migrations()
-
 
 if context.is_offline_mode():
     run_migrations_offline()
