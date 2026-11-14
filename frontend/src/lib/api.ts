@@ -1,5 +1,56 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+// ==========================================
+// FUNCOES DE AUTENTICACAO
+// ==========================================
+export function getToken() {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("investai_token");
+  }
+  return null;
+}
+
+export function setToken(token: string) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("investai_token", token);
+  }
+}
+
+export function removeToken() {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("investai_token");
+  }
+}
+
+export async function login(email: string, senha: string) {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, senha }),
+  });
+  if (!res.ok) {
+    const erro = await res.json();
+    throw new Error(erro.detail || "Erro ao fazer login.");
+  }
+  return res.json();
+}
+
+export async function registrar(nome: string, email: string, senha: string) {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome, email, senha }),
+  });
+  if (!res.ok) {
+    const erro = await res.json();
+    throw new Error(erro.detail || "Erro ao registrar.");
+  }
+  return res.json();
+}
+
+// ==========================================
+// FUNCOES DE DADOS (Com Token de Seguranca)
+// ==========================================
 export interface Carteira {
   id: number;
   perfil_id: number;
@@ -23,6 +74,7 @@ export interface Posicao {
   lucro_prejuizo: number;
   rentabilidade_pct: number;
 }
+
 export interface CarteiraDetalhe {
   carteira_id: number;
   nome: string;
@@ -97,14 +149,32 @@ export interface OperacaoExtrato {
   origem: string;
 }
 
+// NOVA INTERFACE DE NOTICIAS
+export interface Noticia {
+  id: number;
+  titulo: string;
+  url: string;
+  resumo: string;
+  publicado_em: string;
+  fonte_nome: string | null;
+}
+
+function getAuthHeaders() {
+  const token = getToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 export async function getCarteiras(): Promise<Carteira[]> {
-  const res = await fetch(`${API_URL}/carteiras`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/carteiras`, { headers: getAuthHeaders(), cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao buscar carteiras");
   return res.json();
 }
 
 export async function getPosicoes(carteiraId: string | number): Promise<CarteiraDetalhe> {
-  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/posicoes`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/posicoes`, { headers: getAuthHeaders(), cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao buscar posicoes");
   return res.json();
 }
@@ -112,7 +182,7 @@ export async function getPosicoes(carteiraId: string | number): Promise<Carteira
 export async function executarOperacao(carteiraId: string | number, dados: OperacaoPayload) {
   const res = await fetch(`${API_URL}/carteiras/${carteiraId}/operacoes`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(dados),
   });
   if (!res.ok) {
@@ -123,7 +193,7 @@ export async function executarOperacao(carteiraId: string | number, dados: Opera
 }
 
 export async function getIndicadores(ticker: string): Promise<Indicadores> {
-  const res = await fetch(`${API_URL}/ativos/${ticker}/indicadores`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/ativos/${ticker}/indicadores`, { headers: getAuthHeaders(), cache: 'no-store' });
   if (!res.ok) throw new Error("Ativo não encontrado ou dados insuficientes.");
   return res.json();
 }
@@ -131,26 +201,33 @@ export async function getIndicadores(ticker: string): Promise<Indicadores> {
 export async function gerarAnalise(ticker: string): Promise<Analise> {
   const res = await fetch(`${API_URL}/ativos/${ticker}/analisar`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error("Erro ao gerar análise.");
   return res.json();
 }
 
 export async function getCotacoes(ticker: string): Promise<Cotacao[]> {
-  const res = await fetch(`${API_URL}/ativos/${ticker}/cotacoes?limit=60`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/ativos/${ticker}/cotacoes?limit=60`, { headers: getAuthHeaders(), cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao buscar histórico de preços.");
   return res.json();
 }
 
 export async function getRadar(): Promise<RadarResultado> {
-  const res = await fetch(`${API_URL}/radar`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/radar`, { headers: getAuthHeaders(), cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao carregar o radar.");
   return res.json();
 }
 
 export async function getExtrato(carteiraId: string | number): Promise<OperacaoExtrato[]> {
-  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/extrato`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/extrato`, { headers: getAuthHeaders(), cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao carregar o extrato.");
+  return res.json();
+}
+
+// NOVA FUNCAO PARA BUSCAR NOTICIAS
+export async function getNoticias(): Promise<Noticia[]> {
+  const res = await fetch(`${API_URL}/noticias`, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao buscar notícias");
   return res.json();
 }

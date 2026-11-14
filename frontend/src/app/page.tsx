@@ -1,15 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getCarteiras, Carteira } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { getCarteiras, Carteira, getToken, removeToken } from "@/lib/api";
 import Link from "next/link";
 
 export default function Dashboard() {
+  const router = useRouter();
   const [carteiras, setCarteiras] = useState<Carteira[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
     async function carregarDados() {
       try {
         const data = await getCarteiras();
@@ -21,27 +29,19 @@ export default function Dashboard() {
       }
     }
     carregarDados();
-  }, []);
+  }, [router]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950 text-white">
-        <p className="animate-pulse text-xl">Carregando INVEST AI...</p>
-      </div>
-    );
+  function handleLogout() {
+    removeToken();
+    router.push("/login");
   }
 
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950 text-red-500">
-        <p>Erro: {error}. O backend está rodando?</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">Carregando INVEST AI...</div>;
+  if (error) return <div className="min-h-screen bg-gray-950 text-red-500 flex items-center justify-center">Erro: {error}</div>;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-8">
-            <header className="mb-12 border-b border-gray-800 pb-4 flex justify-between items-end">
+      <header className="mb-12 border-b border-gray-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             INVEST <span className="text-emerald-500">AI</span>
@@ -50,13 +50,19 @@ export default function Dashboard() {
             Plataforma de inteligência e análise de investimentos
           </p>
         </div>
-        <div className="flex gap-4">
-          <Link href="/radar" className="bg-purple-900 hover:bg-purple-800 text-purple-100 px-4 py-2 rounded-lg text-sm transition-colors border border-purple-700 mb-1 font-semibold">
+        <div className="flex flex-wrap gap-3 items-center">
+          <Link href="/noticias" className="bg-blue-900 hover:bg-blue-800 text-blue-100 px-4 py-2 rounded-lg text-sm transition-colors border border-blue-700 font-semibold">
+            📰 Notícias
+          </Link>
+          <Link href="/radar" className="bg-purple-900 hover:bg-purple-800 text-purple-100 px-4 py-2 rounded-lg text-sm transition-colors border border-purple-700 font-semibold">
             🏆 Radar
           </Link>
-          <Link href="/analise" className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors border border-gray-700 mb-1">
-            Análise de Ativos &rarr;
+          <Link href="/analise" className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors border border-gray-700">
+            Análise &rarr;
           </Link>
+          <button onClick={handleLogout} className="text-red-400 hover:text-red-300 px-2 py-2 text-sm font-semibold transition-colors ml-2">
+            Sair
+          </button>
         </div>
       </header>
 
