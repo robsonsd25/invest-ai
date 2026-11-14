@@ -4,36 +4,13 @@ services:
     runtime: python
     plan: free
     region: oregon
+    rootDir: backend
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    startCommand: "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: SECRET_KEY
         generateValue: true
-      - key: DB_HOST
-        fromDatabase:
-          name: invest-ai-db
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: invest-ai-db
-          property: port
-      - key: DB_NAME
-        fromDatabase:
-          name: invest-ai-db
-          property: database
-      - key: DB_USER
-        fromDatabase:
-          name: invest-ai-db
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: invest-ai-db
-          property: password
+      - key: DATABASE_URL
+        sync: false  # O Render vai pedir para você colar a URL do Neon
       - key: PYTHON_VERSION
         value: "3.13.0"
-
-databases:
-  - name: invest-ai-db
-    plan: free
-    databaseName: invest_ai_db
-    user: invest_ai_user
