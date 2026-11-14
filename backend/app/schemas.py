@@ -115,3 +115,28 @@ class CotacaoOut(BaseModel):
     minima: Decimal | None
     fechamento: Decimal | None
     volume: int | None
+
+class RadarItemOut(BaseModel):
+    ticker: str
+    nome: str
+    mercado: str
+    fechamento: float
+    sinal: str
+    justificativa: str
+
+class RadarResultadoOut(BaseModel):
+    compra: list[RadarItemOut]
+    venda: list[RadarItemOut]
+    manutencao: list[RadarItemOut]
+
+# NOVO SCHEMA DE EXTRATO
+class OperacaoExtratoOut(BaseModel):
+    id: int
+    ticker: str
+    nome_ativo: str
+    tipo: str
+    quantidade: Decimal
+    preco_unitario: Decimal
+    custos: Decimal
+    executada_em: datetime
+    origem: str
