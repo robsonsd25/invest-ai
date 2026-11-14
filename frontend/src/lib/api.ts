@@ -18,8 +18,11 @@ export interface Posicao {
   quantidade: number;
   preco_medio: number;
   custo_total: number;
+  preco_atual: number;
+  valor_atual: number;
+  lucro_prejuizo: number;
+  rentabilidade_pct: number;
 }
-
 export interface CarteiraDetalhe {
   carteira_id: number;
   nome: string;
@@ -67,6 +70,33 @@ export interface Cotacao {
   volume: number | null;
 }
 
+export interface RadarItem {
+  ticker: string;
+  nome: string;
+  mercado: string;
+  fechamento: number;
+  sinal: string;
+  justificativa: string;
+}
+
+export interface RadarResultado {
+  compra: RadarItem[];
+  venda: RadarItem[];
+  manutencao: RadarItem[];
+}
+
+export interface OperacaoExtrato {
+  id: number;
+  ticker: string;
+  nome_ativo: string;
+  tipo: string;
+  quantidade: string;
+  preco_unitario: string;
+  custos: string;
+  executada_em: string;
+  origem: string;
+}
+
 export async function getCarteiras(): Promise<Carteira[]> {
   const res = await fetch(`${API_URL}/carteiras`, { cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao buscar carteiras");
@@ -110,5 +140,17 @@ export async function gerarAnalise(ticker: string): Promise<Analise> {
 export async function getCotacoes(ticker: string): Promise<Cotacao[]> {
   const res = await fetch(`${API_URL}/ativos/${ticker}/cotacoes?limit=60`, { cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao buscar histórico de preços.");
+  return res.json();
+}
+
+export async function getRadar(): Promise<RadarResultado> {
+  const res = await fetch(`${API_URL}/radar`, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao carregar o radar.");
+  return res.json();
+}
+
+export async function getExtrato(carteiraId: string | number): Promise<OperacaoExtrato[]> {
+  const res = await fetch(`${API_URL}/carteiras/${carteiraId}/extrato`, { cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao carregar o extrato.");
   return res.json();
 }

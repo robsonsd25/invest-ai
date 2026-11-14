@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
-    analises, ativos, carteiras, health, indicadores, mercados, perfis, simulador, posicoes, cotacoes, radar, extrato
+    analises, ativos, auth, carteiras, health, indicadores, mercados, 
+    perfis, simulador, posicoes, cotacoes, radar, extrato
 )
 
 app = FastAPI(
@@ -32,7 +33,9 @@ def inicio():
         "modo": "analise e simulacao",
     }
 
+# Registrando as rotas
 app.include_router(health.router)
+app.include_router(auth.router) # <--- NOVA ROTA DE AUTENTICACAO AQUI
 app.include_router(mercados.router)
 app.include_router(perfis.router)
 app.include_router(ativos.router)

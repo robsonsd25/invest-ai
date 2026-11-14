@@ -41,7 +41,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-8">
-      <header className="mb-12 border-b border-gray-800 pb-4 flex justify-between items-end">
+            <header className="mb-12 border-b border-gray-800 pb-4 flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             INVEST <span className="text-emerald-500">AI</span>
@@ -50,9 +50,14 @@ export default function Dashboard() {
             Plataforma de inteligência e análise de investimentos
           </p>
         </div>
-        <Link href="/analise" className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors border border-gray-700 mb-1">
-          Análise de Ativos &rarr;
-        </Link>
+        <div className="flex gap-4">
+          <Link href="/radar" className="bg-purple-900 hover:bg-purple-800 text-purple-100 px-4 py-2 rounded-lg text-sm transition-colors border border-purple-700 mb-1 font-semibold">
+            🏆 Radar
+          </Link>
+          <Link href="/analise" className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors border border-gray-700 mb-1">
+            Análise de Ativos &rarr;
+          </Link>
+        </div>
       </header>
 
       <section>

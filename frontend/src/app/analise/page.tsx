@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { getIndicadores, gerarAnalise, getCotacoes, Indicadores, Analise, Cotacao } from "@/lib/api";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
-// Importacao dinamica para evitar erro de SSR no Next.js
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export default function AnaliseAtivo() {
-  const [ticker, setTicker] = useState("");
+function AnaliseContent() {
+  const searchParams = useSearchParams();
+  const initialTicker = searchParams.get("ticker") || "";
+
+  const [ticker, setTicker] = useState(initialTicker);
   const [indicadores, setIndicadores] = useState<Indicadores | null>(null);
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [cotacoes, setCotacoes] = useState<Cotacao[]>([]);
@@ -17,9 +20,8 @@ export default function AnaliseAtivo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function buscarDados(e: React.FormEvent) {
-    e.preventDefault();
-    if (!ticker) return;
+  async function buscarDados(t: string) {
+    if (!t) return;
     
     setLoading(true);
     setError(null);
@@ -28,7 +30,6 @@ export default function AnaliseAtivo() {
     setCotacoes([]);
 
     try {
-      const t = ticker.trim().toUpperCase();
       const [indData, cotData] = await Promise.all([
         getIndicadores(t),
         getCotacoes(t)
@@ -42,6 +43,19 @@ export default function AnaliseAtivo() {
     }
   }
 
+  // Se veio um ticker pela URL, busca automaticamente ao carregar a página
+  useEffect(() => {
+    if (initialTicker) {
+      buscarDados(initialTicker);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTicker]);
+
+  async function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    buscarDados(ticker.trim().toUpperCase());
+  }
+
   async function handleAnalisar() {
     if (!indicadores) return;
     try {
@@ -52,17 +66,12 @@ export default function AnaliseAtivo() {
     }
   }
 
-  // Configuracoes do Grafico ApexCharts
   const chartOptions = {
     chart: { type: "candlestick" as const, background: "transparent", toolbar: { show: false } },
     theme: { mode: "dark" as const },
     xaxis: { type: "datetime" as const },
     yaxis: { tooltip: { enabled: true } },
-    plotOptions: {
-      candlestick: {
-        colors: { upward: "#10b981", downward: "#ef4444" }
-      }
-    }
+    plotOptions: { candlestick: { colors: { upward: "#10b981", downward: "#ef4444" } } }
   };
 
   const chartSeries = [{
@@ -87,7 +96,7 @@ export default function AnaliseAtivo() {
       </header>
 
       <section className="mb-8">
-        <form onSubmit={buscarDados} className="flex gap-4 max-w-md">
+        <form onSubmit={handleFormSubmit} className="flex gap-4 max-w-md">
           <input 
             type="text" 
             value={ticker} 
@@ -106,7 +115,6 @@ export default function AnaliseAtivo() {
       {indicadores && (
         <div className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Card de Indicadores */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -118,7 +126,6 @@ export default function AnaliseAtivo() {
                   <p className="text-2xl font-bold">R$ {indicadores.fechamento.toFixed(2)}</p>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-950 p-4 rounded">
                   <p className="text-gray-500 text-xs">RSI (14)</p>
@@ -141,7 +148,6 @@ export default function AnaliseAtivo() {
               </div>
             </div>
 
-            {/* Card de Sinal */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 flex flex-col justify-center items-center text-center">
               {!analise ? (
                 <>
@@ -168,21 +174,22 @@ export default function AnaliseAtivo() {
             </div>
           </div>
 
-          {/* Grafico de Candlestick */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4 text-gray-300">Histórico de Preços (60 dias)</h2>
             <div className="h-[400px] w-full">
-              <Chart 
-                options={chartOptions} 
-                series={chartSeries} 
-                type="candlestick" 
-                height="100%" 
-                width="100%" 
-              />
+              <Chart options={chartOptions} series={chartSeries} type="candlestick" height="100%" width="100%" />
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function AnaliseAtivo() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">Carregando...</div>}>
+      <AnaliseContent />
+    </Suspense>
   );
 }

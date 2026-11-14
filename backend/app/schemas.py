@@ -140,3 +140,24 @@ class OperacaoExtratoOut(BaseModel):
     custos: Decimal
     executada_em: datetime
     origem: str
+
+class UsuarioCreate(BaseModel):
+    nome: str
+    email: str
+    senha: str
+
+class UsuarioOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    nome: str
+    email: str
+    ativo: bool
+    criado_em: datetime
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class LoginRequest(BaseModel):
+    email: str
+    senha: str

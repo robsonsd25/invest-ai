@@ -2,19 +2,18 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useParams } from "next/navigation";
-import { getPosicoes, executarOperacao, CarteiraDetalhe } from "@/lib/api";
+import { getPosicoes, executarOperacao, getExtrato, CarteiraDetalhe, OperacaoExtrato } from "@/lib/api";
 import Link from "next/link";
 
-// Componente interno que usa o useParams
 function CarteiraContent() {
   const params = useParams();
   const carteiraId = params.id as string;
 
   const [detalhe, setDetalhe] = useState<CarteiraDetalhe | null>(null);
+  const [extrato, setExtrato] = useState<OperacaoExtrato[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Estados do Formulário
   const [ticker, setTicker] = useState("PETR4");
   const [tipo, setTipo] = useState<"COMPRA" | "VENDA">("COMPRA");
   const [quantidade, setQuantidade] = useState("10");
@@ -23,20 +22,24 @@ function CarteiraContent() {
   const [msgSucesso, setMsgSucesso] = useState<string | null>(null);
   const [msgErro, setMsgErro] = useState<string | null>(null);
 
-  const carregar = useCallback(async () => {
+  const carregarDados = useCallback(async () => {
     try {
-      const data = await getPosicoes(carteiraId);
-      setDetalhe(data);
+      const [dataPosicoes, dataExtrato] = await Promise.all([
+        getPosicoes(carteiraId),
+        getExtrato(carteiraId)
+      ]);
+      setDetalhe(dataPosicoes);
+      setExtrato(dataExtrato);
     } catch (err: any) {
-      setError(err.message || "Erro ao carregar carteira.");
+      setError(err.message || "Erro ao carregar dados da carteira.");
     } finally {
       setLoading(false);
     }
   }, [carteiraId]);
 
   useEffect(() => {
-    if (carteiraId) carregar();
-  }, [carteiraId, carregar]);
+    if (carteiraId) carregarDados();
+  }, [carteiraId, carregarDados]);
 
   async function handleOperar(e: React.FormEvent) {
     e.preventDefault();
@@ -53,7 +56,7 @@ function CarteiraContent() {
       });
       
       setMsgSucesso(`Ordem de ${tipo} executada com sucesso!`);
-      await carregar(); // Recarrega o saldo e as posições
+      await carregarDados();
     } catch (err: any) {
       setMsgErro(err.message);
     } finally {
@@ -78,8 +81,7 @@ function CarteiraContent() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         {/* FORMULÁRIO DE OPERAÇÃO */}
         <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-fit">
           <h2 className="text-lg font-semibold mb-4 text-gray-200">Simular Operação</h2>
@@ -93,7 +95,6 @@ function CarteiraContent() {
               <input type="text" value={ticker} onChange={e => setTicker(e.target.value)} required
                 className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
             </div>
-            
             <div>
               <label className="block text-sm text-gray-400 mb-1">Tipo</label>
               <select value={tipo} onChange={e => setTipo(e.target.value as "COMPRA" | "VENDA")}
@@ -102,7 +103,6 @@ function CarteiraContent() {
                 <option value="VENDA">VENDA</option>
               </select>
             </div>
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Qtd</label>
@@ -115,7 +115,6 @@ function CarteiraContent() {
                   className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
               </div>
             </div>
-
             <button type="submit" disabled={enviando}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
               {enviando ? "Enviando..." : "Executar Ordem"}
@@ -123,33 +122,42 @@ function CarteiraContent() {
           </form>
         </section>
 
-        {/* TABELA DE POSIÇÕES */}
+        {/* TABELA DE POSIÇÕES ATUALIZADA COM P&L */}
         <section className="lg:col-span-2">
           <h2 className="text-xl font-semibold mb-4 text-gray-300">Minhas Posições</h2>
           
           {detalhe.posicoes.length === 0 ? (
             <p className="text-gray-500">Nenhuma ação em custódia.</p>
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <table className="w-full text-left">
-                <thead className="bg-gray-800 text-gray-400 text-sm">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="bg-gray-800 text-gray-400">
                   <tr>
                     <th className="p-4">Ativo</th>
-                    <th className="p-4">Qtd</th>
-                    <th className="p-4">Preço Médio</th>
-                    <th className="p-4 text-right">Custo Total</th>
+                    <th className="p-4 text-right">Qtd</th>
+                    <th className="p-4 text-right">Custo Médio</th>
+                    <th className="p-4 text-right">Cotação Atual</th>
+                    <th className="p-4 text-right">Valor Atual</th>
+                    <th className="p-4 text-right">Rentabilidade</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
                   {detalhe.posicoes.map((pos) => (
                     <tr key={pos.ativo_id} className="hover:bg-gray-800/50">
                       <td className="p-4">
-                        <span className="font-bold text-emerald-500">{pos.ticker}</span>
-                        <p className="text-xs text-gray-500">{pos.nome}</p>
+                        <span className="font-bold text-emerald-500 text-base">{pos.ticker}</span>
+                        <p className="text-xs text-gray-500 truncate max-w-[150px]">{pos.nome}</p>
                       </td>
-                      <td className="p-4">{pos.quantidade}</td>
-                      <td className="p-4">R$ {pos.preco_medio.toFixed(2)}</td>
-                      <td className="p-4 text-right font-medium">R$ {pos.custo_total.toFixed(2)}</td>
+                      <td className="p-4 text-right">{pos.quantidade}</td>
+                      <td className="p-4 text-right text-gray-400">R$ {pos.preco_medio.toFixed(2)}</td>
+                      <td className="p-4 text-right font-medium">R$ {pos.preco_atual.toFixed(2)}</td>
+                      <td className="p-4 text-right font-medium">R$ {pos.valor_atual.toFixed(2)}</td>
+                      <td className={`p-4 text-right font-bold ${pos.lucro_prejuizo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        <div className="flex flex-col items-end">
+                          <span>{pos.lucro_prejuizo >= 0 ? "+" : ""}R$ {pos.lucro_prejuizo.toFixed(2)}</span>
+                          <span className="text-xs font-normal opacity-80">({pos.rentabilidade_pct >= 0 ? "+" : ""}{pos.rentabilidade_pct.toFixed(2)}%)</span>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -158,11 +166,56 @@ function CarteiraContent() {
           )}
         </section>
       </div>
+
+      {/* EXTRATO */}
+      <section className="mt-12">
+        <h2 className="text-xl font-semibold mb-4 text-gray-300">Extrato de Operações</h2>
+        
+        {extrato.length === 0 ? (
+          <p className="text-gray-500">Nenhuma operação registrada ainda.</p>
+        ) : (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-800 text-gray-400">
+                <tr>
+                  <th className="p-4">Data / Hora</th>
+                  <th className="p-4">Ativo</th>
+                  <th className="p-4">Operação</th>
+                  <th className="p-4 text-right">Qtd</th>
+                  <th className="p-4 text-right">Preço Unit.</th>
+                  <th className="p-4 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {extrato.map((op) => (
+                  <tr key={op.id} className="hover:bg-gray-800/50">
+                    <td className="p-4 text-gray-400">
+                      {new Date(op.executada_em).toLocaleString("pt-BR")}
+                    </td>
+                    <td className="p-4 font-bold text-gray-200">{op.ticker}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                        op.tipo === "COMPRA" ? "bg-emerald-900 text-emerald-400" : "bg-red-900 text-red-400"
+                      }`}>
+                        {op.tipo}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">{parseFloat(op.quantidade)}</td>
+                    <td className="p-4 text-right">R$ {parseFloat(op.preco_unitario).toFixed(2)}</td>
+                    <td className="p-4 text-right font-medium">
+                      R$ {(parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-// Componente principal exportado, com o Suspense
 export default function DetalheCarteira() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">Carregando dados...</div>}>
