@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { getIndicadores, gerarAnalise, getCotacoes, getCarteiras, executarOperacao, getFavoritos, addFavorito, removeFavorito, Indicadores, Analise, Cotacao, Carteira } from "@/lib/api";
+import { getIndicadores, gerarAnalise, getCotacoes, getCarteiras, getPosicoes, executarOperacao, getFavoritos, addFavorito, removeFavorito, Indicadores, Analise, Cotacao, Carteira, CarteiraDetalhe } from "@/lib/api";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import toast from "react-hot-toast";
@@ -25,8 +25,15 @@ function AnaliseContent() {
 
   const [carteiras, setCarteiras] = useState<Carteira[]>([]);
   const [carteiraSelecionada, setCarteiraSelecionada] = useState<string>("");
+  const [carteiraDetalhe, setCarteiraDetalhe] = useState<CarteiraDetalhe | null>(null);
   const [quantidade, setQuantidade] = useState<string>("10");
   const [enviandoOrdem, setEnviandoOrdem] = useState(false);
+
+  // Busca a carteira detalhada quando o usuário troca de carteira
+  useEffect(() => {
+    if (!carteiraSelecionada) return;
+    getPosicoes(carteiraSelecionada).then(setCarteiraDetalhe).catch(console.error);
+  }, [carteiraSelecionada]);
 
   async function buscarDados(t: string) {
     if (!t) return;
@@ -39,7 +46,9 @@ function AnaliseContent() {
       setIndicadores(indData);
       setCotacoes(cotData);
       setCarteiras(cartData);
-      if (cartData.length > 0) setCarteiraSelecionada(cartData[0].id.toString());
+      if (cartData.length > 0 && !carteiraSelecionada) {
+        setCarteiraSelecionada(cartData[0].id.toString());
+      }
       setIsFavorito(favs.some(f => f.ticker === t));
     } catch (err: any) {
       setError(err.message);
@@ -49,6 +58,15 @@ function AnaliseContent() {
   }
 
   useEffect(() => { if (initialTicker) buscarDados(initialTicker); }, [initialTicker]);
+
+  // Recarrega a carteira detalhada quando uma operação é feita
+  async function recarregarCarteira() {
+    if (!carteiraSelecionada) return;
+    try {
+      const data = await getPosicoes(carteiraSelecionada);
+      setCarteiraDetalhe(data);
+    } catch (err) { console.error(err); }
+  }
 
   async function toggleFavorito() {
     if (!indicadores) return;
@@ -72,13 +90,68 @@ function AnaliseContent() {
     const qtd = parseFloat(quantidade);
     if (isNaN(qtd) || qtd <= 0) { toast.error("Quantidade inválida."); return; }
 
+    // Validações locais rápidas
+    if (tipo === "COMPRA") {
+      const custo = qtd * indicadores.fechamento;
+      if (carteiraDetalhe && custo > carteiraDetalhe.saldo_caixa) {
+        toast.error(`Saldo insuficiente. Necessário: R$ ${custo.toFixed(2)}`);
+        return;
+      }
+    }
+    if (tipo === "VENDA") {
+      const pos = carteiraDetalhe?.posicoes.find(p => p.ticker === indicadores.ticker);
+      if (!pos || qtd > pos.quantidade) {
+        toast.error(`Você não tem ${qtd} ações de ${indicadores.ticker}.`);
+        return;
+      }
+    }
+
     setEnviandoOrdem(true);
     try {
       await executarOperacao(carteiraSelecionada, { ticker: indicadores.ticker, tipo, quantidade: qtd, preco_unitario: indicadores.fechamento });
-      toast.success(`Ordem de ${tipo} executada!`);
+      toast.success(`Ordem de ${tipo} de ${qtd} ${indicadores.ticker} executada!`);
+      await recarregarCarteira();
     } catch (err: any) { toast.error(err.message); } finally { setEnviandoOrdem(false); }
   }
 
+  // QUANTIDADE RÁPIDA
+  function adicionarQtd(inc: number) {
+    const atual = parseFloat(quantidade) || 0;
+    setQuantidade((atual + inc).toString());
+  }
+  function definirMaxCompra() {
+    if (!indicadores || !carteiraDetalhe) return;
+    const max = Math.floor(carteiraDetalhe.saldo_caixa / indicadores.fechamento);
+    setQuantidade(max.toString());
+  }
+  function definirMaxVenda() {
+    if (!indicadores || !carteiraDetalhe) return;
+    const pos = carteiraDetalhe.posicoes.find(p => p.ticker === indicadores.ticker);
+    if (pos) setQuantidade(pos.quantidade.toString());
+  }
+
+  // CÁLCULOS DA OPERAÇÃO
+  const calc = useMemo(() => {
+    if (!indicadores) return null;
+    const qtd = parseFloat(quantidade) || 0;
+    const total = qtd * indicadores.fechamento;
+    const saldoAtual = carteiraDetalhe?.saldo_caixa || 0;
+    const posAtual = carteiraDetalhe?.posicoes.find(p => p.ticker === indicadores.ticker);
+    return {
+      total,
+      saldoAtual,
+      saldoAposCompra: saldoAtual - total,
+      saldoAposVenda: saldoAtual + total,
+      posAtual: posAtual?.quantidade || 0,
+      precoMedio: posAtual?.preco_medio || 0,
+      pnl: posAtual?.lucro_prejuizo || 0,
+      pnlPct: posAtual?.rentabilidade_pct || 0,
+      temSaldo: total <= saldoAtual,
+      temAcoes: qtd <= (posAtual?.quantidade || 0),
+    };
+  }, [indicadores, quantidade, carteiraDetalhe]);
+
+  // GRÁFICO
   const precosFechamento = cotacoes.map(c => parseFloat(c.fechamento || "0"));
   const datas = cotacoes.map(c => new Date(c.data).getTime());
   
@@ -135,6 +208,7 @@ function AnaliseContent() {
         <div className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
+            {/* CARD INDICADORES COM FAVORITO */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 relative">
               <button onClick={toggleFavorito} className="absolute top-6 right-6 text-2xl hover:scale-110 transition-transform">
                 {isFavorito ? "⭐" : "☆"}
@@ -155,6 +229,7 @@ function AnaliseContent() {
               </div>
             </div>
 
+            {/* CARD SINAL */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 flex flex-col justify-center items-center text-center">
               {!analise ? (
                 <><p className="text-gray-500 dark:text-gray-400 mb-4">Gerar sinal do motor V1?</p>
@@ -166,22 +241,141 @@ function AnaliseContent() {
               )}
             </div>
 
+            {/* INFORMAÇÕES DA SUA POSIÇÃO */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
-              <h2 className="text-lg font-semibold mb-4">Negociação Rápida</h2>
-              <div className="space-y-4">
-                <select value={carteiraSelecionada} onChange={e => setCarteiraSelecionada(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded p-3">
-                  {carteiras.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-                <input type="number" min="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded p-3" />
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <button onClick={() => handleExecutarOrdem("COMPRA")} disabled={enviandoOrdem} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded">Comprar</button>
-                  <button onClick={() => handleExecutarOrdem("VENDA")} disabled={enviandoOrdem} className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded">Vender</button>
+              <h2 className="text-lg font-semibold mb-4">Sua Posição</h2>
+              {calc && calc.posAtual > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Quantidade</span>
+                    <span className="font-bold tabular-nums">{calc.posAtual} ações</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Preço Médio</span>
+                    <span className="font-bold tabular-nums">R$ {calc.precoMedio.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Valor Atual</span>
+                    <span className="font-bold tabular-nums">R$ {(calc.posAtual * indicadores.fechamento).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-3 border-t border-gray-200 dark:border-gray-800">
+                    <span className="text-gray-500">Lucro/Prejuízo</span>
+                    <span className={`font-bold tabular-nums ${calc.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {calc.pnl >= 0 ? '+' : ''}R$ {calc.pnl.toFixed(2)} ({calc.pnlPct.toFixed(2)}%)
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500">Você ainda não possui ações de {indicadores.ticker} nesta carteira.</p>
+                </div>
+              )}
             </div>
 
           </div>
 
+          {/* PAINEL DE NEGOCIAÇÃO EXPANDIDO */}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-6">💼 Mesa de Operações</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              
+              {/* COLUNA ESQUERDA: CONFIGURAÇÃO */}
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Carteira</label>
+                  <select 
+                    value={carteiraSelecionada} 
+                    onChange={e => setCarteiraSelecionada(e.target.value)} 
+                    className="w-full bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg p-3 font-semibold"
+                  >
+                    {carteiras.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                  {calc && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Saldo disponível: <span className="font-bold tabular-nums">R$ {calc.saldoAtual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Quantidade</label>
+                  <div className="flex gap-2">
+                    <button onClick={() => adicionarQtd(-10)} className="px-3 py-2 bg-gray-200 dark:bg-gray-800 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-700">-10</button>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      value={quantidade} 
+                      onChange={e => setQuantidade(e.target.value)}
+                      className="flex-1 bg-gray-50 dark:bg-gray-950 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-center font-bold text-lg"
+                    />
+                    <button onClick={() => adicionarQtd(10)} className="px-3 py-2 bg-gray-200 dark:bg-gray-800 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-700">+10</button>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => setQuantidade("10")} className="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-700">10</button>
+                    <button onClick={() => setQuantidade("50")} className="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-700">50</button>
+                    <button onClick={() => setQuantidade("100")} className="flex-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-xs rounded hover:bg-gray-200 dark:hover:bg-gray-700">100</button>
+                    <button onClick={definirMaxCompra} className="flex-1 px-2 py-1 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs rounded font-bold hover:bg-emerald-200 dark:hover:bg-emerald-800">Máx C</button>
+                    <button onClick={definirMaxVenda} className="flex-1 px-2 py-1 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 text-xs rounded font-bold hover:bg-red-200 dark:hover:bg-red-800">Máx V</button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-500">Preço Unitário</span>
+                    <span className="font-semibold tabular-nums">R$ {indicadores.fechamento.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-500">Quantidade</span>
+                    <span className="font-semibold tabular-nums">{parseFloat(quantidade) || 0} ações</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-300 dark:border-gray-700">
+                    <span>Total da Ordem</span>
+                    <span className="tabular-nums text-emerald-600 dark:text-emerald-400">R$ {(calc?.total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* COLUNA DIREITA: AÇÕES E PREVISÃO */}
+              <div className="space-y-4">
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-lg p-4">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium mb-1">Saldo APÓS a compra</p>
+                  <p className={`text-xl font-bold tabular-nums ${calc && calc.saldoAposCompra < 0 ? 'text-red-500' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    R$ {(calc?.saldoAposCompra || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                  {calc && !calc.temSaldo && <p className="text-xs text-red-500 mt-1">⚠️ Saldo insuficiente</p>}
+                </div>
+
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg p-4">
+                  <p className="text-xs text-red-700 dark:text-red-300 font-medium mb-1">Saldo APÓS a venda</p>
+                  <p className="text-xl font-bold tabular-nums text-red-600 dark:text-red-400">
+                    R$ {(calc?.saldoAposVenda || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                  {calc && !calc.temAcoes && <p className="text-xs text-red-500 mt-1">⚠️ Ações insuficientes</p>}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button 
+                    onClick={() => handleExecutarOrdem("COMPRA")} 
+                    disabled={enviandoOrdem || !calc?.temSaldo}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-lg"
+                  >
+                    {enviandoOrdem ? "..." : "🟢 Comprar"}
+                  </button>
+                  <button 
+                    onClick={() => handleExecutarOrdem("VENDA")} 
+                    disabled={enviandoOrdem || !calc?.temAcoes}
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-lg"
+                  >
+                    {enviandoOrdem ? "..." : "🔴 Vender"}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* GRÁFICO */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4">Histórico de Preços (60 dias)</h2>
             <div className="h-[400px] w-full">
