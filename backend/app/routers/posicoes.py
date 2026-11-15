@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Ativo, Carteira, Cotacao, OperacaoSimulada, Usuario
+from app.models import Ativo, Carteira, Cotacao, OperacaoSimulada, PerfilRisco, Usuario
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/carteiras", tags=["posicoes"])
@@ -19,9 +19,10 @@ def listar_posicoes(
     current_user: Usuario = Depends(get_current_user)
 ):
     carteira = db.get(Carteira, carteira_id)
-    # TRAVA DE SEGURANCA: Verifica se a carteira pertence ao usuario logado
     if not carteira or carteira.usuario_id != current_user.id:
         raise HTTPException(status_code=403, detail="Acesso negado a esta carteira.")
+
+    perfil = db.get(PerfilRisco, carteira.perfil_id)
 
     operacoes = db.scalars(
         select(OperacaoSimulada)
@@ -34,6 +35,8 @@ def listar_posicoes(
             "carteira_id": carteira.id,
             "nome": carteira.nome,
             "saldo_caixa": float(carteira.saldo_caixa),
+            "capital_inicial": float(carteira.capital_inicial),
+            "max_exposicao_pct": float(perfil.max_exposicao_pct),
             "posicoes": []
         }
 
@@ -84,5 +87,7 @@ def listar_posicoes(
         "carteira_id": carteira.id,
         "nome": carteira.nome,
         "saldo_caixa": float(carteira.saldo_caixa),
+        "capital_inicial": float(carteira.capital_inicial),
+        "max_exposicao_pct": float(perfil.max_exposicao_pct),
         "posicoes": resultado
     }
