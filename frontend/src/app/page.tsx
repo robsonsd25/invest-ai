@@ -88,11 +88,18 @@ export default function Dashboard() {
           <section className="mb-10">
             <h2 className="text-xl font-semibold mb-4 text-gray-300">Top Oportunidades do Dia</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* COMPRAS */}
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-                <h3 className="text-emerald-500 font-bold mb-4 flex items-center gap-2"><span className="bg-emerald-900/50 p-1.5 rounded text-sm">🚀</span> Compras (RSI Baixo)</h3>
+                <div className="mb-4">
+                  <h3 className="text-emerald-500 font-bold flex items-center gap-2">
+                    <span className="bg-emerald-900/50 p-1.5 rounded text-sm">🚀</span> Oportunidades de Compra
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">Ativos sobrevendidos (RSI &lt; 30) ou em tendência de alta.</p>
+                </div>
                 <div className="space-y-3">
                   {radar?.compra.slice(0, 3).map((item, index) => (
-                    <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-950 p-3 rounded-lg border border-gray-800 hover:border-emerald-500/50">
+                    <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-950 p-3 rounded-lg border border-gray-800 hover:border-emerald-500/50 transition-colors">
                       <div className="flex items-center gap-3">
                         <span className="text-gray-500 font-bold text-lg">#{index + 1}</span>
                         <div><p className="font-bold text-gray-100">{item.ticker}</p><p className="text-xs text-gray-500">{item.mercado}</p></div>
@@ -100,13 +107,21 @@ export default function Dashboard() {
                       <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-emerald-400 font-medium">RSI: {item.rsi_14?.toFixed(1)}</p></div>
                     </Link>
                   ))}
+                  {radar?.compra.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                 </div>
               </div>
+
+              {/* VENDAS */}
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-                <h3 className="text-red-500 font-bold mb-4 flex items-center gap-2"><span className="bg-red-900/50 p-1.5 rounded text-sm">⚠️</span> Vendas (RSI Alto)</h3>
+                <div className="mb-4">
+                  <h3 className="text-red-500 font-bold flex items-center gap-2">
+                    <span className="bg-red-900/50 p-1.5 rounded text-sm">⚠️</span> Alertas de Venda
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">Ativos sobrecomprados (RSI &gt; 70) ou em tendência de baixa.</p>
+                </div>
                 <div className="space-y-3">
                   {radar?.venda.slice(0, 3).map((item, index) => (
-                    <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-950 p-3 rounded-lg border border-gray-800 hover:border-red-500/50">
+                    <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-950 p-3 rounded-lg border border-gray-800 hover:border-red-500/50 transition-colors">
                       <div className="flex items-center gap-3">
                         <span className="text-gray-500 font-bold text-lg">#{index + 1}</span>
                         <div><p className="font-bold text-gray-100">{item.ticker}</p><p className="text-xs text-gray-500">{item.mercado}</p></div>
@@ -114,8 +129,10 @@ export default function Dashboard() {
                       <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-red-400 font-medium">RSI: {item.rsi_14?.toFixed(1)}</p></div>
                     </Link>
                   ))}
+                  {radar?.venda.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                 </div>
               </div>
+
             </div>
           </section>
 
