@@ -16,10 +16,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Tenta pegar do Render/Neon
+# 1. Tenta pegar do Render/Neon
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Se nao tiver (ambiente local), monta a URL manualmente
+# 2. Se nao tiver, monta a URL local
 if not DATABASE_URL:
     db_host = os.getenv("DB_HOST", "localhost")
     db_port = os.getenv("DB_PORT", "5432")
@@ -31,6 +31,10 @@ if not DATABASE_URL:
         raise ValueError("DB_PASSWORD nao configurada e DATABASE_URL nao fornecida.")
         
     DATABASE_URL = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+
+# 3. Força o uso do psycopg2 (se a URL do Neon vier sem o +psycopg2)
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 

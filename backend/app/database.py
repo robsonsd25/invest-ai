@@ -1,11 +1,7 @@
-"""
-Engine e sessao SQLAlchemy do INVEST AI.
-"""
 import os
 from urllib.parse import quote_plus
-
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 from app.config import settings
 
@@ -20,6 +16,9 @@ if not DATABASE_URL:
         f"postgresql+psycopg2://{settings.DB_USER}:{quote_plus(settings.DB_PASSWORD)}"
         f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
     )
+
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 engine = create_engine(
     DATABASE_URL,

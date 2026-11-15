@@ -1,6 +1,3 @@
-"""
-Configuracao central do INVEST AI.
-"""
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -14,6 +11,6 @@ class Settings(BaseSettings):
     DB_PORT: int = 5432
     DB_NAME: str = "invest_ai"
     DB_USER: str = "postgres"
-    DB_PASSWORD: str | None = None  # Agora é opcional
+    DB_PASSWORD: str | None = None  # Opcional
 
 settings = Settings()
