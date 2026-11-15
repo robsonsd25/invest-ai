@@ -29,6 +29,7 @@ def inicio():
     return {"projeto": "INVEST AI", "status": "online"}
 
 app.include_router(health.router)
+app.include_router(favoritos.router)
 app.include_router(auth.router)
 app.include_router(mercados.router)
 app.include_router(perfis.router)

@@ -48,3 +48,8 @@ export async function getPrecoAtual(ticker: string): Promise<PrecoAtual> { const
 export async function getRadar(): Promise<RadarResultado> { const res = await fetch(`${API_URL}/radar`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
 export async function getExtrato(carteiraId: string | number): Promise<OperacaoExtrato[]> { const res = await fetch(`${API_URL}/carteiras/${carteiraId}/extrato`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
 export async function getNoticias(): Promise<Noticia[]> { const res = await fetch(`${API_URL}/noticias`, { cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
+
+export interface Favorito { ativo_id: number; ticker: string; nome: string; preco_atual: number; }
+export async function getFavoritos(): Promise<Favorito[]> { const res = await fetch(`${API_URL}/favoritos`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro"); return res.json(); }
+export async function addFavorito(ticker: string) { await fetch(`${API_URL}/favoritos/${ticker}`, { method: "POST", headers: getAuthHeaders() }); }
+export async function removeFavorito(ticker: string) { await fetch(`${API_URL}/favoritos/${ticker}`, { method: "DELETE", headers: getAuthHeaders() }); }
