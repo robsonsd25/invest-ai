@@ -16,14 +16,20 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Em app/main.py
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://invest-ai.vercel.app"],
+    # Lista explícita de origens permitidas.
+    allow_origins=[
+        "http://localhost:3000",      # Para desenvolvimento local
+        "http://127.0.0.1:3000",      # Para desenvolvimento local
+        "https://invest-ai-livid.vercel.app"  # <-- SUA URL DA VERCEL AQUI
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 @app.get("/", tags=["sistema"])
 def inicio():
     return {"projeto": "INVEST AI", "status": "online", "modo": "analise e simulacao"}
