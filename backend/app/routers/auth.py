@@ -1,5 +1,5 @@
 """
-Router de Autenticacao: Cadastro e Login.
+Router de Autenticacao: Cadastro, Login e Recuperacao de Senha.
 """
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Usuario, PerfilRisco, Carteira
-from app.schemas import UsuarioCreate, UsuarioOut, Token, LoginRequest
+from app.schemas import UsuarioCreate, UsuarioOut, Token, LoginRequest, ResetPasswordRequest
 from app.core.security import (
     verificar_senha, gerar_hash_senha, criar_access_token, 
     SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -22,6 +22,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 @router.post("/register", response_model=UsuarioOut, status_code=201)
 def registrar(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+    # O Pydantic (EmailStr) já barrou e-mails inválidos antes de chegar aqui.
     existe = db.scalar(select(Usuario).where(Usuario.email == usuario.email))
     if existe:
         raise HTTPException(status_code=400, detail="Email ja cadastrado.")
@@ -32,7 +33,7 @@ def registrar(usuario: UsuarioCreate, db: Session = Depends(get_db)):
         senha_hash=gerar_hash_senha(usuario.senha)
     )
     db.add(novo_usuario)
-    db.flush() # Garante que o usuario_id seja gerado antes de criar as carteiras
+    db.flush() # Gera o ID do usuário antes de criar as carteiras
 
     # Cria as 3 carteiras padrao para o novo usuario
     perfis = db.scalars(select(PerfilRisco)).all()
@@ -64,6 +65,18 @@ def login(dados: LoginRequest, db: Session = Depends(get_db)):
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/reset-password", status_code=200)
+def reset_password(dados: ResetPasswordRequest, db: Session = Depends(get_db)):
+    usuario = db.scalar(select(Usuario).where(Usuario.email == dados.email))
+    if not usuario:
+        raise HTTPException(status_code=404, detail="E-mail não encontrado no sistema.")
+
+    # Criptografa a nova senha e salva no banco
+    usuario.senha_hash = gerar_hash_senha(dados.nova_senha)
+    db.commit()
+
+    return {"mensagem": "Senha redefinida com sucesso! Você já pode fazer login."}
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Usuario:
     credentials_exception = HTTPException(

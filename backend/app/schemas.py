@@ -1,11 +1,42 @@
 """
 Schemas Pydantic do INVEST AI.
-Definem o formato das respostas da API.
+Definem o formato das respostas da API e validacoes de entrada.
 """
 from datetime import datetime, date
 from decimal import Decimal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
+# ==========================================
+# SCHEMAS DE AUTENTICACAO
+# ==========================================
+class UsuarioCreate(BaseModel):
+    nome: str
+    email: EmailStr  # Valida se o formato do e-mail e correto
+    senha: str
+
+class UsuarioOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    nome: str
+    email: str
+    ativo: bool
+    criado_em: datetime
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    senha: str
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    nova_senha: str
+
+# ==========================================
+# SCHEMAS DO SISTEMA
+# ==========================================
 class HealthResponse(BaseModel):
     status: str
     backend: str
@@ -129,7 +160,6 @@ class RadarResultadoOut(BaseModel):
     venda: list[RadarItemOut]
     manutencao: list[RadarItemOut]
 
-# NOVO SCHEMA DE EXTRATO
 class OperacaoExtratoOut(BaseModel):
     id: int
     ticker: str
@@ -140,27 +170,6 @@ class OperacaoExtratoOut(BaseModel):
     custos: Decimal
     executada_em: datetime
     origem: str
-
-class UsuarioCreate(BaseModel):
-    nome: str
-    email: str
-    senha: str
-
-class UsuarioOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    nome: str
-    email: str
-    ativo: bool
-    criado_em: datetime
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class LoginRequest(BaseModel):
-    email: str
-    senha: str
 
 class NoticiaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

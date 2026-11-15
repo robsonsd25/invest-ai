@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       const data = await login(email, senha);
       setToken(data.access_token);
-      router.push("/"); // Redireciona para o Dashboard
+      router.push("/");
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -62,6 +62,12 @@ export default function LoginPage() {
               placeholder="••••••••"
               className="w-full bg-gray-950 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-emerald-500" 
             />
+            {/* LINK DE ESQUECI A SENHA */}
+            <div className="flex justify-end mt-2">
+              <Link href="/forgot-password" className="text-sm text-gray-400 hover:text-emerald-500 transition-colors">
+                Esqueci minha senha
+              </Link>
+            </div>
           </div>
           <button 
             type="submit" 

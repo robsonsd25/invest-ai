@@ -48,8 +48,21 @@ export async function registrar(nome: string, email: string, senha: string) {
   return res.json();
 }
 
+export async function resetPassword(email: string, novaSenha: string) {
+  const res = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, nova_senha: novaSenha }),
+  });
+  if (!res.ok) {
+    const erro = await res.json();
+    throw new Error(erro.detail || "Erro ao redefinir a senha.");
+  }
+  return res.json();
+}
+
 // ==========================================
-// FUNCOES DE DADOS (Com Token de Seguranca)
+// INTERFACES DE DADOS
 // ==========================================
 export interface Carteira {
   id: number;
@@ -83,6 +96,7 @@ export interface CarteiraDetalhe {
   max_exposicao_pct: number;
   posicoes: Posicao[];
 }
+
 export interface OperacaoPayload {
   ticker: string;
   tipo: "COMPRA" | "VENDA";
@@ -150,7 +164,6 @@ export interface OperacaoExtrato {
   origem: string;
 }
 
-// NOVA INTERFACE DE NOTICIAS
 export interface Noticia {
   id: number;
   titulo: string;
@@ -160,6 +173,9 @@ export interface Noticia {
   fonte_nome: string | null;
 }
 
+// ==========================================
+// FUNCOES DE DADOS
+// ==========================================
 function getAuthHeaders() {
   const token = getToken();
   return {
@@ -226,7 +242,6 @@ export async function getExtrato(carteiraId: string | number): Promise<OperacaoE
   return res.json();
 }
 
-// NOVA FUNCAO PARA BUSCAR NOTICIAS
 export async function getNoticias(): Promise<Noticia[]> {
   const res = await fetch(`${API_URL}/noticias`, { cache: 'no-store' });
   if (!res.ok) throw new Error("Erro ao buscar notícias");
