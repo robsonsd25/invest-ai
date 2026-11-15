@@ -14,6 +14,10 @@ export default function Dashboard() {
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Estados para expandir as listas
+  const [mostrarTodasCompras, setMostrarTodasCompras] = useState(false);
+  const [mostrarTodasVendas, setMostrarTodasVendas] = useState(false);
+
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
@@ -39,7 +43,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap gap-2 items-center">
           <ThemeToggle />
           <Link href="/noticias" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100 px-3 py-2 rounded-lg text-sm font-semibold transition-colors">📰 Notícias</Link>
-          <Link href="/radar" className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100 px-3 py-2 rounded-lg text-sm font-semibold transition-colors">🏆 Radar</Link>
+          <Link href="/radar" className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100 px-3 py-2 rounded-lg text-sm font-semibold transition-colors">🏆 Radar Completo</Link>
           <Link href="/analise" className="bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-sm transition-colors">Análise &rarr;</Link>
           <Link href="/perfil" className="bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-sm transition-colors">👤 Perfil</Link>
           <button onClick={handleLogout} className="text-red-500 px-2 py-2 text-sm font-semibold">Sair</button>
@@ -53,6 +57,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
+          {/* PATRIMONIO GERAL */}
           {patrimonio && (
             <section className="mb-10">
               <div className="bg-white dark:bg-gradient-to-r dark:from-gray-900 dark:to-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm">
@@ -67,39 +72,75 @@ export default function Dashboard() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            
+            {/* TOP OPORTUNIDADES COM EXPANSÃO */}
             <section className="lg:col-span-2">
               <h2 className="text-xl font-semibold mb-4">Top Oportunidades do Dia</h2>
               {radar && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
-                    <h3 className="text-emerald-600 dark:text-emerald-500 font-bold mb-4 flex items-center gap-2">🚀 Compras</h3>
-                    <div className="space-y-3">
-                      {radar.compra.slice(0, 3).map((item, index) => (
+                  
+                  {/* COMPRAS */}
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-emerald-600 dark:text-emerald-500 font-bold flex items-center gap-2">🚀 Compras</h3>
+                      {radar.compra.length > 3 && (
+                        <button 
+                          onClick={() => setMostrarTodasCompras(!mostrarTodasCompras)}
+                          className="text-xs text-gray-500 hover:text-emerald-500 font-medium transition-colors"
+                        >
+                          {mostrarTodasCompras ? "Recolher ▲" : `Ver todos (${radar.compra.length}) ▼`}
+                        </button>
+                      )}
+                    </div>
+                    <div className={`space-y-3 ${mostrarTodasCompras ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
+                      {radar.compra.slice(0, mostrarTodasCompras ? undefined : 3).map((item, index) => (
                         <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-emerald-500/50 transition-colors">
-                          <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-400 font-bold">#{index + 1}</span>
+                            <div><p className="font-bold">{item.ticker}</p></div>
+                          </div>
                           <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-emerald-500">RSI: {item.rsi_14?.toFixed(1)}</p></div>
                         </Link>
                       ))}
+                      {radar.compra.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                     </div>
                   </div>
-                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
-                    <h3 className="text-red-500 font-bold mb-4 flex items-center gap-2">⚠️ Vendas</h3>
-                    <div className="space-y-3">
-                      {radar.venda.slice(0, 3).map((item, index) => (
+
+                  {/* VENDAS */}
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-red-500 font-bold flex items-center gap-2">⚠️ Vendas</h3>
+                      {radar.venda.length > 3 && (
+                        <button 
+                          onClick={() => setMostrarTodasVendas(!mostrarTodasVendas)}
+                          className="text-xs text-gray-500 hover:text-red-500 font-medium transition-colors"
+                        >
+                          {mostrarTodasVendas ? "Recolher ▲" : `Ver todos (${radar.venda.length}) ▼`}
+                        </button>
+                      )}
+                    </div>
+                    <div className={`space-y-3 ${mostrarTodasVendas ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
+                      {radar.venda.slice(0, mostrarTodasVendas ? undefined : 3).map((item, index) => (
                         <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-red-500/50 transition-colors">
-                          <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-gray-400 font-bold">#{index + 1}</span>
+                            <div><p className="font-bold">{item.ticker}</p></div>
+                          </div>
                           <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-red-500">RSI: {item.rsi_14?.toFixed(1)}</p></div>
                         </Link>
                       ))}
+                      {radar.venda.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                     </div>
                   </div>
+
                 </div>
               )}
             </section>
 
+            {/* WATCHLIST */}
             <section>
               <h2 className="text-xl font-semibold mb-4">⭐ Meus Favoritos</h2>
-              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm h-full max-h-[320px] overflow-y-auto">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm h-full max-h-[400px] overflow-y-auto">
                 {favoritos.length === 0 ? (
                   <p className="text-sm text-gray-500 italic text-center py-8">Você ainda não favoritou nenhum ativo.<br/>Vá na tela de Análise e clique na estrela!</p>
                 ) : (
@@ -118,6 +159,7 @@ export default function Dashboard() {
             </section>
           </div>
 
+          {/* CARTEIRAS */}
           <section>
             <h2 className="text-xl font-semibold mb-4">Minhas Carteiras Virtuais</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
