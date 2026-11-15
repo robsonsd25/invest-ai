@@ -47,17 +47,21 @@ export default function Dashboard() {
             Plataforma de inteligência e análise de investimentos
           </p>
         </div>
-        <div className="flex flex-wrap gap-3 items-center">
-          <Link href="/noticias" className="bg-blue-900 hover:bg-blue-800 text-blue-100 px-4 py-2 rounded-lg text-sm transition-colors border border-blue-700 font-semibold">
+        <div className="flex flex-wrap gap-2 md:gap-3 items-center">
+          <Link href="/noticias" className="bg-blue-900 hover:bg-blue-800 text-blue-100 px-3 py-2 md:px-4 rounded-lg text-sm transition-colors border border-blue-700 font-semibold">
             📰 Notícias
           </Link>
-          <Link href="/radar" className="bg-purple-900 hover:bg-purple-800 text-purple-100 px-4 py-2 rounded-lg text-sm transition-colors border border-purple-700 font-semibold">
+          <Link href="/radar" className="bg-purple-900 hover:bg-purple-800 text-purple-100 px-3 py-2 md:px-4 rounded-lg text-sm transition-colors border border-purple-700 font-semibold">
             🏆 Radar
           </Link>
-          <Link href="/analise" className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition-colors border border-gray-700">
+          <Link href="/analise" className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-2 md:px-4 rounded-lg text-sm transition-colors border border-gray-700">
             Análise &rarr;
           </Link>
-          <button onClick={handleLogout} className="text-red-400 hover:text-red-300 px-2 py-2 text-sm font-semibold transition-colors ml-2">
+          {/* NOVO LINK DE PERFIL */}
+          <Link href="/perfil" className="bg-gray-800 hover:bg-gray-700 text-white px-3 py-2 md:px-4 rounded-lg text-sm transition-colors border border-gray-700">
+            👤 Perfil
+          </Link>
+          <button onClick={handleLogout} className="text-red-400 hover:text-red-300 px-2 py-2 text-sm font-semibold transition-colors ml-1 md:ml-2">
             Sair
           </button>
         </div>
@@ -70,7 +74,6 @@ export default function Dashboard() {
           Minhas Carteiras Virtuais
         </h2>
         
-        {/* SKELETON LOADER */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (

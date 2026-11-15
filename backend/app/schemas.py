@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, EmailStr
 # ==========================================
 class UsuarioCreate(BaseModel):
     nome: str
-    email: EmailStr  # Valida se o formato do e-mail e correto
+    email: EmailStr
     senha: str
 
 class UsuarioOut(BaseModel):
@@ -32,6 +32,10 @@ class LoginRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
+    nova_senha: str
+
+class SenhaUpdate(BaseModel):
+    senha_atual: str
     nova_senha: str
 
 # ==========================================

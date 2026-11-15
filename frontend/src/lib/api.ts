@@ -64,6 +64,14 @@ export async function resetPassword(email: string, novaSenha: string) {
 // ==========================================
 // INTERFACES DE DADOS
 // ==========================================
+export interface Usuario {
+  id: number;
+  nome: string;
+  email: string;
+  ativo: boolean;
+  criado_em: string;
+}
+
 export interface Carteira {
   id: number;
   perfil_id: number;
@@ -182,6 +190,25 @@ function getAuthHeaders() {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+export async function getMe(): Promise<Usuario> {
+  const res = await fetch(`${API_URL}/auth/me`, { headers: getAuthHeaders(), cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao buscar dados do usuário.");
+  return res.json();
+}
+
+export async function alterarSenha(senhaAtual: string, novaSenha: string) {
+  const res = await fetch(`${API_URL}/auth/me/password`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ senha_atual: senhaAtual, nova_senha: novaSenha }),
+  });
+  if (!res.ok) {
+    const erro = await res.json();
+    throw new Error(erro.detail || "Erro ao alterar a senha.");
+  }
+  return res.json();
 }
 
 export async function getCarteiras(): Promise<Carteira[]> {

@@ -1,5 +1,5 @@
 """
-Router de Autenticacao: Cadastro, Login e Recuperacao de Senha.
+Router de Autenticacao: Cadastro, Login, Recuperacao e Perfil.
 """
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Usuario, PerfilRisco, Carteira
-from app.schemas import UsuarioCreate, UsuarioOut, Token, LoginRequest, ResetPasswordRequest
+from app.schemas import (
+    UsuarioCreate, UsuarioOut, Token, LoginRequest, 
+    ResetPasswordRequest, SenhaUpdate
+)
 from app.core.security import (
     verificar_senha, gerar_hash_senha, criar_access_token, 
     SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -22,7 +25,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 @router.post("/register", response_model=UsuarioOut, status_code=201)
 def registrar(usuario: UsuarioCreate, db: Session = Depends(get_db)):
-    # O Pydantic (EmailStr) já barrou e-mails inválidos antes de chegar aqui.
     existe = db.scalar(select(Usuario).where(Usuario.email == usuario.email))
     if existe:
         raise HTTPException(status_code=400, detail="Email ja cadastrado.")
@@ -33,9 +35,8 @@ def registrar(usuario: UsuarioCreate, db: Session = Depends(get_db)):
         senha_hash=gerar_hash_senha(usuario.senha)
     )
     db.add(novo_usuario)
-    db.flush() # Gera o ID do usuário antes de criar as carteiras
+    db.flush()
 
-    # Cria as 3 carteiras padrao para o novo usuario
     perfis = db.scalars(select(PerfilRisco)).all()
     for perfil in perfis:
         nova_carteira = Carteira(
@@ -72,11 +73,9 @@ def reset_password(dados: ResetPasswordRequest, db: Session = Depends(get_db)):
     if not usuario:
         raise HTTPException(status_code=404, detail="E-mail não encontrado no sistema.")
 
-    # Criptografa a nova senha e salva no banco
     usuario.senha_hash = gerar_hash_senha(dados.nova_senha)
     db.commit()
-
-    return {"mensagem": "Senha redefinida com sucesso! Você já pode fazer login."}
+    return {"mensagem": "Senha redefinida com sucesso!"}
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Usuario:
     credentials_exception = HTTPException(
@@ -96,3 +95,21 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if usuario is None or not usuario.ativo:
         raise credentials_exception
     return usuario
+
+# NOVAS ROTAS DE PERFIL
+@router.get("/me", response_model=UsuarioOut)
+def ler_usuario_atual(current_user: Usuario = Depends(get_current_user)):
+    return current_user
+
+@router.put("/me/password", status_code=200)
+def atualizar_senha(
+    dados: SenhaUpdate, 
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    if not verificar_senha(dados.senha_atual, current_user.senha_hash):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta.")
+    
+    current_user.senha_hash = gerar_hash_senha(dados.nova_senha)
+    db.commit()
+    return {"mensagem": "Senha atualizada com sucesso."}
