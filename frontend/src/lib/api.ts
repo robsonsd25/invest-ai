@@ -79,9 +79,10 @@ export interface CarteiraDetalhe {
   carteira_id: number;
   nome: string;
   saldo_caixa: number;
+  capital_inicial: number;
+  max_exposicao_pct: number;
   posicoes: Posicao[];
 }
-
 export interface OperacaoPayload {
   ticker: string;
   tipo: "COMPRA" | "VENDA";

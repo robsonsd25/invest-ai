@@ -63,6 +63,16 @@ function CarteiraContent() {
 
   if (error) return <div className="min-h-screen bg-gray-950 text-red-500 flex items-center justify-center p-4">Erro: {error}</div>;
 
+  // Calculo de Exposicao Atual para a Barra
+  const custoInvestido = detalhe?.posicoes.reduce((acc, pos) => acc + pos.custo_total, 0) || 0;
+  const limiteMaximo = detalhe ? (detalhe.capital_inicial * detalhe.max_exposicao_pct) / 100 : 0;
+  const percentualUsado = limiteMaximo > 0 ? (custoInvestido / limiteMaximo) * 100 : 0;
+  
+  // Cor da barra: Verde ate 70%, Amarelo ate 90%, Vermelho acima
+  let corBarra = "bg-emerald-500";
+  if (percentualUsado > 70) corBarra = "bg-yellow-500";
+  if (percentualUsado > 90) corBarra = "bg-red-500";
+
   return (
     <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
       <header className="mb-8 border-b border-gray-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -86,6 +96,7 @@ function CarteiraContent() {
 
       {loading ? (
         <div className="space-y-8 animate-pulse">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl h-[100px]"></div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-[350px]"></div>
             <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl h-[350px]"></div>
@@ -94,6 +105,31 @@ function CarteiraContent() {
         </div>
       ) : (
         <>
+          {/* GESTAO DE RISCO CARD */}
+          <section className="mb-8 bg-gray-900 border border-gray-800 rounded-xl p-6">
+            <div className="flex justify-between items-end mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-200">Limite de Exposição ({detalhe?.max_exposicao_pct}%)</h2>
+                <p className="text-sm text-gray-400 mt-1">Quanto do capital total está investido em ativos.</p>
+              </div>
+              <div className="text-right tabular-nums">
+                <p className="text-sm text-gray-400">Investido / Limite</p>
+                <p className="font-bold text-lg">
+                  R$ {custoInvestido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} 
+                  <span className="text-gray-500 text-sm"> / R$ {limiteMaximo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                </p>
+              </div>
+            </div>
+            
+            <div className="w-full bg-gray-950 rounded-full h-4 border border-gray-800 overflow-hidden">
+              <div 
+                className={`h-full ${corBarra} transition-all duration-500`} 
+                style={{ width: `${Math.min(percentualUsado, 100)}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2 text-right">{percentualUsado.toFixed(1)}% do limite utilizado</p>
+          </section>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
             {/* FORMULÁRIO DE OPERAÇÃO */}
             <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-fit">
