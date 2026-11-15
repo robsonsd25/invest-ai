@@ -152,6 +152,7 @@ export interface RadarItem {
   fechamento: number;
   sinal: string;
   justificativa: string;
+  rsi_14: number | null; // <--- NOVO CAMPO
 }
 
 export interface RadarResultado {

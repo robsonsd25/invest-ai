@@ -1,6 +1,6 @@
 """
 Router do Radar de Oportunidades.
-Varre todos os ativos do banco e roda o motor de análise.
+Varre todos os ativos e ranqueia as melhores oportunidades.
 """
 import pandas as pd
 from fastapi import APIRouter, Depends
@@ -17,7 +17,6 @@ router = APIRouter(prefix="/radar", tags=["radar"])
 
 @router.get("", response_model=RadarResultadoOut)
 def gerar_radar(db: Session = Depends(get_db)):
-    # Busca todos os ativos ativos no banco
     ativos = db.scalars(
         select(Ativo)
         .join(Mercado, Ativo.mercado_id == Mercado.id)
@@ -30,10 +29,8 @@ def gerar_radar(db: Session = Depends(get_db)):
     manutencoes = []
 
     for ativo in ativos:
-        # Pega o mercado do ativo
         mercado = db.get(Mercado, ativo.mercado_id)
         
-        # Pega as últimas 300 cotações
         cotacoes = db.scalars(
             select(Cotacao)
             .where(Cotacao.ativo_id == ativo.id, Cotacao.fechamento.is_not(None))
@@ -42,7 +39,6 @@ def gerar_radar(db: Session = Depends(get_db)):
         ).all()
 
         if len(cotacoes) < 30:
-            # Se não tem dados suficientes, pula
             continue
 
         datas = [c.data for c in cotacoes]
@@ -59,7 +55,8 @@ def gerar_radar(db: Session = Depends(get_db)):
                 mercado=mercado.codigo,
                 fechamento=snapshot.fechamento,
                 sinal=resultado.sinal,
-                justificativa=resultado.justificativa
+                justificativa=resultado.justificativa,
+                rsi_14=snapshot.rsi_14 # <--- Passando o RSI
             )
 
             if resultado.sinal == "COMPRA":
@@ -69,8 +66,14 @@ def gerar_radar(db: Session = Depends(get_db)):
             else:
                 manutencoes.append(item)
         except Exception:
-            # Se der algum erro no cálculo, ignora o ativo
             continue
+
+    # --- ORDENACAO DE RANKING ---
+    # Compras: Menor RSI primeiro (mais sobrevendido = melhor oportunidade)
+    compras.sort(key=lambda x: x.rsi_14 if x.rsi_14 is not None else 999)
+    
+    # Vendas: Maior RSI primeiro (mais sobrecomprado = melhor oportunidade de venda)
+    vendas.sort(key=lambda x: x.rsi_14 if x.rsi_14 is not None else -999, reverse=True)
 
     return RadarResultadoOut(
         compra=compras,

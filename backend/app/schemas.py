@@ -1,14 +1,10 @@
 """
 Schemas Pydantic do INVEST AI.
-Definem o formato das respostas da API e validacoes de entrada.
 """
 from datetime import datetime, date
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
-# ==========================================
-# SCHEMAS DE AUTENTICACAO
-# ==========================================
 class UsuarioCreate(BaseModel):
     nome: str
     email: EmailStr
@@ -38,9 +34,6 @@ class SenhaUpdate(BaseModel):
     senha_atual: str
     nova_senha: str
 
-# ==========================================
-# SCHEMAS DO SISTEMA
-# ==========================================
 class HealthResponse(BaseModel):
     status: str
     backend: str
@@ -119,8 +112,8 @@ class AnaliseOut(BaseModel):
 class OperacaoCreate(BaseModel):
     ticker: str = Field(..., description="Ticker do ativo (ex: PETR4)")
     tipo: str = Field(..., description="COMPRA ou VENDA")
-    quantidade: Decimal = Field(..., gt=0, description="Quantidade de acoes (deve ser maior que zero)")
-    preco_unitario: Decimal = Field(..., gt=0, description="Preco unitario no momento da simulacao")
+    quantidade: Decimal = Field(..., gt=0, description="Quantidade de acoes")
+    preco_unitario: Decimal = Field(..., gt=0, description="Preco unitario")
 
 class OperacaoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -151,6 +144,7 @@ class CotacaoOut(BaseModel):
     fechamento: Decimal | None
     volume: int | None
 
+# --- SCHEMA ATUALIZADO DO RADAR ---
 class RadarItemOut(BaseModel):
     ticker: str
     nome: str
@@ -158,6 +152,7 @@ class RadarItemOut(BaseModel):
     fechamento: float
     sinal: str
     justificativa: str
+    rsi_14: float | None # <--- NOVO CAMPO
 
 class RadarResultadoOut(BaseModel):
     compra: list[RadarItemOut]
