@@ -110,10 +110,10 @@ class AnaliseOut(BaseModel):
     validada: bool
 
 class OperacaoCreate(BaseModel):
-    ticker: str = Field(..., description="Ticker do ativo (ex: PETR4)")
+    ticker: str = Field(..., description="Ticker do ativo")
     tipo: str = Field(..., description="COMPRA ou VENDA")
-    quantidade: Decimal = Field(..., gt=0, description="Quantidade de acoes")
-    preco_unitario: Decimal = Field(..., gt=0, description="Preco unitario")
+    quantidade: Decimal = Field(..., gt=0)
+    preco_unitario: Decimal = Field(..., gt=0)
 
 class OperacaoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -128,6 +128,9 @@ class OperacaoOut(BaseModel):
     origem: str
     observacao: str | None
 
+class DepositoCreate(BaseModel):
+    valor: Decimal = Field(..., gt=0, description="Valor do aporte virtual")
+
 class CarteiraResumoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -135,7 +138,6 @@ class CarteiraResumoOut(BaseModel):
     saldo_caixa: Decimal
     capital_inicial: Decimal
 
-# NOVO SCHEMA PARA O DASHBOARD GERAL
 class PatrimonioGeralOut(BaseModel):
     saldo_caixa_total: float
     valor_investido_total: float

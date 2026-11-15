@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useParams } from "next/navigation";
-import { getPosicoes, executarOperacao, getExtrato, getPrecoAtual, CarteiraDetalhe, OperacaoExtrato } from "@/lib/api";
+import { getPosicoes, executarOperacao, getExtrato, getPrecoAtual, realizarDeposito, CarteiraDetalhe, OperacaoExtrato } from "@/lib/api";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -21,6 +21,7 @@ function CarteiraContent() {
   const [preco, setPreco] = useState("");
   const [buscandoPreco, setBuscandoPreco] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [depositando, setDepositando] = useState(false);
 
   const carregarDados = useCallback(async () => {
     try {
@@ -38,16 +39,14 @@ function CarteiraContent() {
     if (carteiraId) carregarDados();
   }, [carteiraId, carregarDados]);
 
-  // FUNCAO PARA BUSCAR O PRECO AUTOMATICO
   async function handleTickerChange(val: string) {
     setTicker(val);
-    if (val.length >= 4) { // Só busca se tiver tamanho mínimo de ticker
+    if (val.length >= 4) {
       setBuscandoPreco(true);
       try {
         const data = await getPrecoAtual(val);
         setPreco(data.preco_atual.toFixed(2));
       } catch (err) {
-        // Silencioso: se não achar, deixa o usuário digitar manualmente
       } finally {
         setBuscandoPreco(false);
       }
@@ -71,21 +70,37 @@ function CarteiraContent() {
     }
   }
 
-  // FUNCAO PARA EXPORTAR CSV
+  // FUNCAO DE DEPOSITO
+  async function handleDeposito() {
+    const valorStr = window.prompt("Quanto deseja adicionar ao saldo desta carteira? (Apenas números, ex: 1000)");
+    if (!valorStr) return;
+    
+    const valor = parseFloat(valorStr.replace(",", "."));
+    if (isNaN(valor) || valor <= 0) {
+      toast.error("Por favor, digite um valor válido maior que zero.");
+      return;
+    }
+
+    setDepositando(true);
+    try {
+      await realizarDeposito(carteiraId, valor);
+      toast.success(`Depósito de R$ ${valor.toFixed(2)} realizado!`);
+      await carregarDados();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setDepositando(false);
+    }
+  }
+
   function exportarCSV() {
     if (extrato.length === 0) return;
-
     const headers = ["Data/Hora", "Ticker", "Tipo", "Quantidade", "Preco Unitario", "Total"];
     const rows = extrato.map(op => [
-      new Date(op.executada_em).toLocaleString("pt-BR"),
-      op.ticker,
-      op.tipo,
-      parseFloat(op.quantidade).toString(),
-      parseFloat(op.preco_unitario).toFixed(2),
+      new Date(op.executada_em).toLocaleString("pt-BR"), op.ticker, op.tipo,
+      parseFloat(op.quantidade).toString(), parseFloat(op.preco_unitario).toFixed(2),
       (parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)
     ]);
-
-    // Adiciona o BOM (\uFEFF) para o Excel reconhecer acentos
     const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -108,10 +123,21 @@ function CarteiraContent() {
         </div>
         <div className="text-left md:text-right bg-gray-900 md:bg-transparent p-4 md:p-0 rounded-xl w-full md:w-auto">
           <p className="text-sm text-gray-400">Saldo Disponível</p>
-          {loading ? <div className="h-8 bg-gray-800 rounded w-32 animate-pulse mt-1"></div> : <p className="text-2xl font-bold text-emerald-400 tabular-nums">R$ {detalhe?.saldo_caixa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>}
+          {loading ? (
+            <div className="h-8 bg-gray-800 rounded w-32 animate-pulse mt-1"></div>
+          ) : (
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-3 mt-1">
+              <p className="text-2xl font-bold text-emerald-400 tabular-nums">R$ {detalhe?.saldo_caixa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+              <button onClick={handleDeposito} disabled={depositando} className="bg-emerald-900 hover:bg-emerald-800 text-emerald-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-emerald-700">
+                {depositando ? "..." : "💰 Adicionar Dinheiro"}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
+      {/* ... (O resto da tela continua IGUALZINHO ao da mensagem anterior, com a barra de risco, o form e o extrato com CSV) ... */}
+      
       {loading ? (
         <div className="space-y-8 animate-pulse">
           <div className="bg-gray-900 border border-gray-800 rounded-xl h-[100px]"></div>
