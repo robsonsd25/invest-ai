@@ -135,6 +135,13 @@ class CarteiraResumoOut(BaseModel):
     saldo_caixa: Decimal
     capital_inicial: Decimal
 
+# NOVO SCHEMA PARA O DASHBOARD GERAL
+class PatrimonioGeralOut(BaseModel):
+    saldo_caixa_total: float
+    valor_investido_total: float
+    patrimonio_total: float
+    rentabilidade_total_pct: float
+
 class CotacaoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     data: date
@@ -144,7 +151,11 @@ class CotacaoOut(BaseModel):
     fechamento: Decimal | None
     volume: int | None
 
-# --- SCHEMA ATUALIZADO DO RADAR ---
+class PrecoAtualOut(BaseModel):
+    ticker: str
+    preco_atual: float
+    data: date
+
 class RadarItemOut(BaseModel):
     ticker: str
     nome: str
@@ -152,7 +163,7 @@ class RadarItemOut(BaseModel):
     fechamento: float
     sinal: str
     justificativa: str
-    rsi_14: float | None # <--- NOVO CAMPO
+    rsi_14: float | None
 
 class RadarResultadoOut(BaseModel):
     compra: list[RadarItemOut]

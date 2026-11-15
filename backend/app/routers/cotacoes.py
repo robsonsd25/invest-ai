@@ -1,6 +1,5 @@
 """
 Router de cotacoes historicas.
-Devolve os dados OHLCV para graficos no frontend.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -9,7 +8,7 @@ from typing import List
 
 from app.database import get_db
 from app.models import Ativo, Cotacao
-from app.schemas import CotacaoOut
+from app.schemas import CotacaoOut, PrecoAtualOut
 
 router = APIRouter(prefix="/ativos", tags=["cotacoes"])
 
@@ -20,12 +19,10 @@ def listar_cotacoes(
     db: Session = Depends(get_db)
 ):
     ticker_norm = ticker.strip().upper()
-    
     ativo = db.scalar(select(Ativo).where(Ativo.ticker == ticker_norm, Ativo.ativo.is_(True)))
     if not ativo:
         raise HTTPException(status_code=404, detail="Ativo nao encontrado")
 
-    # Busca as 'limit' cotacoes mais recentes
     stmt = (
         select(Cotacao)
         .where(Cotacao.ativo_id == ativo.id)
@@ -33,8 +30,28 @@ def listar_cotacoes(
         .limit(limit)
     )
     cotacoes = db.scalars(stmt).all()
-
-    # Inverte para o grafico ficar da data mais antiga para a mais recente
     cotacoes.reverse()
-    
     return cotacoes
+
+@router.get("/{ticker}/preco-atual", response_model=PrecoAtualOut)
+def obter_preco_atual(ticker: str, db: Session = Depends(get_db)):
+    ticker_norm = ticker.strip().upper()
+    ativo = db.scalar(select(Ativo).where(Ativo.ticker == ticker_norm, Ativo.ativo.is_(True)))
+    if not ativo:
+        raise HTTPException(status_code=404, detail="Ativo nao encontrado")
+
+    cotacao = db.scalar(
+        select(Cotacao)
+        .where(Cotacao.ativo_id == ativo.id)
+        .order_by(Cotacao.data.desc())
+        .limit(1)
+    )
+    
+    if not cotacao or not cotacao.fechamento:
+        raise HTTPException(status_code=404, detail="Cotacao indisponivel para este ativo")
+
+    return PrecoAtualOut(
+        ticker=ativo.ticker,
+        preco_atual=float(cotacao.fechamento),
+        data=cotacao.data
+    )
