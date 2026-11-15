@@ -2,9 +2,10 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { getIndicadores, gerarAnalise, getCotacoes, Indicadores, Analise, Cotacao } from "@/lib/api";
+import { getIndicadores, gerarAnalise, getCotacoes, getCarteiras, executarOperacao, Indicadores, Analise, Cotacao, Carteira } from "@/lib/api";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import toast from "react-hot-toast";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -20,6 +21,12 @@ function AnaliseContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Estados para a Negociação Rápida
+  const [carteiras, setCarteiras] = useState<Carteira[]>([]);
+  const [carteiraSelecionada, setCarteiraSelecionada] = useState<string>("");
+  const [quantidade, setQuantidade] = useState<string>("10");
+  const [enviandoOrdem, setEnviandoOrdem] = useState(false);
+
   async function buscarDados(t: string) {
     if (!t) return;
     
@@ -30,12 +37,17 @@ function AnaliseContent() {
     setCotacoes([]);
 
     try {
-      const [indData, cotData] = await Promise.all([
+      const [indData, cotData, cartData] = await Promise.all([
         getIndicadores(t),
-        getCotacoes(t)
+        getCotacoes(t),
+        getCarteiras() // Busca as carteiras para o formulário
       ]);
       setIndicadores(indData);
       setCotacoes(cotData);
+      setCarteiras(cartData);
+      if (cartData.length > 0) {
+        setCarteiraSelecionada(cartData[0].id.toString());
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -43,7 +55,6 @@ function AnaliseContent() {
     }
   }
 
-  // Se veio um ticker pela URL, busca automaticamente ao carregar a página
   useEffect(() => {
     if (initialTicker) {
       buscarDados(initialTicker);
@@ -62,7 +73,37 @@ function AnaliseContent() {
       const result = await gerarAnalise(indicadores.ticker);
       setAnalise(result);
     } catch (err: any) {
-      setError(err.message);
+      toast.error(err.message);
+    }
+  }
+
+  // FUNÇÃO PARA EXECUTAR ORDEM DIRETO DA TELA DE ANÁLISE
+  async function handleExecutarOrdem(tipo: "COMPRA" | "VENDA") {
+    if (!carteiraSelecionada) {
+      toast.error("Selecione uma carteira.");
+      return;
+    }
+    if (!indicadores) return;
+    
+    const qtd = parseFloat(quantidade);
+    if (isNaN(qtd) || qtd <= 0) {
+      toast.error("Digite uma quantidade válida.");
+      return;
+    }
+
+    setEnviandoOrdem(true);
+    try {
+      await executarOperacao(carteiraSelecionada, {
+        ticker: indicadores.ticker,
+        tipo,
+        quantidade: qtd,
+        preco_unitario: indicadores.fechamento, // Usa o preço de fechamento atual
+      });
+      toast.success(`Ordem de ${tipo} executada com sucesso!`);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setEnviandoOrdem(false);
     }
   }
 
@@ -88,11 +129,11 @@ function AnaliseContent() {
   }];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8">
+    <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
       <header className="mb-8 border-b border-gray-800 pb-4">
         <Link href="/" className="text-emerald-500 hover:underline text-sm mb-2 inline-block">&larr; Voltar ao Dashboard</Link>
-        <h1 className="text-3xl font-bold">Análise de Ativos</h1>
-        <p className="text-gray-400 mt-1">Consulte indicadores e sinais de mercado</p>
+        <h1 className="text-3xl font-bold">Análise e Operação</h1>
+        <p className="text-gray-400 mt-1">Consulte indicadores e execute ordens</p>
       </header>
 
       <section className="mb-8">
@@ -114,7 +155,11 @@ function AnaliseContent() {
 
       {indicadores && (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          
+          {/* GRID PRINCIPAL: INDICADORES, SINAL E NEGOCIAÇÃO */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* CARD DE INDICADORES */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -126,6 +171,7 @@ function AnaliseContent() {
                   <p className="text-2xl font-bold">R$ {indicadores.fechamento.toFixed(2)}</p>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-950 p-4 rounded">
                   <p className="text-gray-500 text-xs">RSI (14)</p>
@@ -148,12 +194,13 @@ function AnaliseContent() {
               </div>
             </div>
 
+            {/* CARD DE SINAL */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 flex flex-col justify-center items-center text-center">
               {!analise ? (
                 <>
                   <p className="text-gray-400 mb-4">Deseja gerar o sinal do motor V1?</p>
                   <button onClick={handleAnalisar}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-8 rounded transition-colors">
+                    className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded transition-colors border border-gray-700">
                     Gerar Análise
                   </button>
                 </>
@@ -172,8 +219,73 @@ function AnaliseContent() {
                 </>
               )}
             </div>
+
+            {/* CARD DE NEGOCIAÇÃO RÁPIDA (NOVO) */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <h2 className="text-lg font-semibold mb-4 text-gray-200">Negociação Rápida</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Escolha a Carteira</label>
+                  <select 
+                    value={carteiraSelecionada} 
+                    onChange={e => setCarteiraSelecionada(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="" disabled>Selecione...</option>
+                    {carteiras.map(c => (
+                      <option key={c.id} value={c.id}>{c.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Quantidade</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    step="1"
+                    value={quantidade} 
+                    onChange={e => setQuantidade(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="bg-gray-950 p-3 rounded border border-gray-800">
+                  <div className="flex justify-between text-sm text-gray-400 mb-1">
+                    <span>Preço Unitário:</span>
+                    <span className="text-white tabular-nums">R$ {indicadores.fechamento.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-800 mt-1">
+                    <span>Total Estimado:</span>
+                    <span className="text-emerald-400 tabular-nums">
+                      R$ {(parseFloat(quantidade || "0") * indicadores.fechamento).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <button 
+                    onClick={() => handleExecutarOrdem("COMPRA")} 
+                    disabled={enviandoOrdem}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded transition-colors disabled:opacity-50"
+                  >
+                    Comprar
+                  </button>
+                  <button 
+                    onClick={() => handleExecutarOrdem("VENDA")} 
+                    disabled={enviandoOrdem}
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded transition-colors disabled:opacity-50"
+                  >
+                    Vender
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
 
+          {/* GRÁFICO */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4 text-gray-300">Histórico de Preços (60 dias)</h2>
             <div className="h-[400px] w-full">
