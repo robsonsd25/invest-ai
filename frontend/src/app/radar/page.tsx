@@ -23,20 +23,25 @@ export default function RadarPage() {
     carregar();
   }, []);
 
-  if (loading) return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">Analisando o mercado...</div>;
   if (error) return <div className="min-h-screen bg-gray-950 text-red-500 flex items-center justify-center">Erro: {error}</div>;
-  if (!radar) return null;
 
-  const renderizarColuna = (titulo: string, itens: RadarItem[], corBorda: string, corTexto: string) => (
+  const renderizarColuna = (titulo: string, itens: RadarItem[] | undefined, corBorda: string, corTexto: string) => (
     <div className="flex-1">
       <h2 className={`text-xl font-bold mb-4 border-b pb-2 ${corBorda} ${corTexto}`}>
-        {titulo} ({itens.length})
+        {titulo} ({itens?.length || 0})
       </h2>
       <div className="space-y-4">
-        {itens.length === 0 ? (
+        {loading ? (
+          [1, 2, 3].map(i => (
+            <div key={i} className="bg-gray-900 border border-gray-800 rounded-lg p-4 h-[100px] animate-pulse">
+              <div className="h-5 bg-gray-800 rounded w-1/3 mb-4"></div>
+              <div className="h-4 bg-gray-800 rounded w-2/3"></div>
+            </div>
+          ))
+        ) : itens?.length === 0 ? (
           <p className="text-gray-500 text-sm italic">Nenhum ativo neste status.</p>
         ) : (
-          itens.map((item) => (
+          itens?.map((item) => (
             <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`}>
               <div className="bg-gray-900 border border-gray-800 rounded-lg p-4 hover:bg-gray-800 transition-colors">
                 <div className="flex justify-between items-start mb-2">
@@ -66,9 +71,9 @@ export default function RadarPage() {
       </header>
 
       <div className="flex flex-col md:flex-row gap-8">
-        {renderizarColuna("Sinal de COMPRA", radar.compra, "border-emerald-500", "text-emerald-500")}
-        {renderizarColuna("Sinal de VENDA", radar.venda, "border-red-500", "text-red-500")}
-        {renderizarColuna("MANUTENÇÃO", radar.manutencao, "border-yellow-500", "text-yellow-500")}
+        {renderizarColuna("Sinal de COMPRA", radar?.compra, "border-emerald-500", "text-emerald-500")}
+        {renderizarColuna("Sinal de VENDA", radar?.venda, "border-red-500", "text-red-500")}
+        {renderizarColuna("MANUTENÇÃO", radar?.manutencao, "border-yellow-500", "text-yellow-500")}
       </div>
     </div>
   );

@@ -64,161 +64,222 @@ function CarteiraContent() {
     }
   }
 
-  if (loading) return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">Carregando...</div>;
-  if (error) return <div className="min-h-screen bg-gray-950 text-red-500 flex items-center justify-center">Erro: {error}</div>;
-  if (!detalhe) return null;
+  if (error) return <div className="min-h-screen bg-gray-950 text-red-500 flex items-center justify-center p-4">Erro: {error}</div>;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8">
-      <header className="mb-8 border-b border-gray-800 pb-4 flex justify-between items-center">
+    <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
+      <header className="mb-8 border-b border-gray-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <Link href="/" className="text-emerald-500 hover:underline text-sm mb-2 inline-block">&larr; Voltar ao Dashboard</Link>
-          <h1 className="text-3xl font-bold">{detalhe.nome}</h1>
+          {loading ? (
+            <div className="h-8 bg-gray-800 rounded w-64 animate-pulse mt-2"></div>
+          ) : (
+            <h1 className="text-2xl md:text-3xl font-bold">{detalhe?.nome}</h1>
+          )}
         </div>
-        <div className="text-right">
+        <div className="text-left md:text-right bg-gray-900 md:bg-transparent p-4 md:p-0 rounded-xl w-full md:w-auto">
           <p className="text-sm text-gray-400">Saldo Disponível</p>
-          <p className="text-2xl font-bold text-emerald-400">R$ {detalhe.saldo_caixa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+          {loading ? (
+            <div className="h-8 bg-gray-800 rounded w-32 animate-pulse mt-1"></div>
+          ) : (
+            <p className="text-2xl font-bold text-emerald-400">R$ {detalhe?.saldo_caixa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+          )}
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-        {/* FORMULÁRIO DE OPERAÇÃO */}
-        <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-fit">
-          <h2 className="text-lg font-semibold mb-4 text-gray-200">Simular Operação</h2>
-          
-          {msgSucesso && <div className="bg-emerald-900/50 text-emerald-400 p-3 rounded mb-4 text-sm">{msgSucesso}</div>}
-          {msgErro && <div className="bg-red-900/50 text-red-400 p-3 rounded mb-4 text-sm">{msgErro}</div>}
-
-          <form onSubmit={handleOperar} className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Ativo (Ticker)</label>
-              <input type="text" value={ticker} onChange={e => setTicker(e.target.value)} required
-                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Tipo</label>
-              <select value={tipo} onChange={e => setTipo(e.target.value as "COMPRA" | "VENDA")}
-                className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500">
-                <option value="COMPRA">COMPRA</option>
-                <option value="VENDA">VENDA</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Qtd</label>
-                <input type="number" step="1" min="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} required
-                  className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Preço (R$)</label>
-                <input type="number" step="0.01" min="0.01" value={preco} onChange={e => setPreco(e.target.value)} required
-                  className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
-              </div>
-            </div>
-            <button type="submit" disabled={enviando}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
-              {enviando ? "Enviando..." : "Executar Ordem"}
-            </button>
-          </form>
-        </section>
-
-        {/* TABELA DE POSIÇÕES ATUALIZADA COM P&L */}
-        <section className="lg:col-span-2">
-          <h2 className="text-xl font-semibold mb-4 text-gray-300">Minhas Posições</h2>
-          
-          {detalhe.posicoes.length === 0 ? (
-            <p className="text-gray-500">Nenhuma ação em custódia.</p>
-          ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-gray-800 text-gray-400">
-                  <tr>
-                    <th className="p-4">Ativo</th>
-                    <th className="p-4 text-right">Qtd</th>
-                    <th className="p-4 text-right">Custo Médio</th>
-                    <th className="p-4 text-right">Cotação Atual</th>
-                    <th className="p-4 text-right">Valor Atual</th>
-                    <th className="p-4 text-right">Rentabilidade</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {detalhe.posicoes.map((pos) => (
-                    <tr key={pos.ativo_id} className="hover:bg-gray-800/50">
-                      <td className="p-4">
-                        <span className="font-bold text-emerald-500 text-base">{pos.ticker}</span>
-                        <p className="text-xs text-gray-500 truncate max-w-[150px]">{pos.nome}</p>
-                      </td>
-                      <td className="p-4 text-right">{pos.quantidade}</td>
-                      <td className="p-4 text-right text-gray-400">R$ {pos.preco_medio.toFixed(2)}</td>
-                      <td className="p-4 text-right font-medium">R$ {pos.preco_atual.toFixed(2)}</td>
-                      <td className="p-4 text-right font-medium">R$ {pos.valor_atual.toFixed(2)}</td>
-                      <td className={`p-4 text-right font-bold ${pos.lucro_prejuizo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                        <div className="flex flex-col items-end">
-                          <span>{pos.lucro_prejuizo >= 0 ? "+" : ""}R$ {pos.lucro_prejuizo.toFixed(2)}</span>
-                          <span className="text-xs font-normal opacity-80">({pos.rentabilidade_pct >= 0 ? "+" : ""}{pos.rentabilidade_pct.toFixed(2)}%)</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </div>
-
-      {/* EXTRATO */}
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4 text-gray-300">Extrato de Operações</h2>
-        
-        {extrato.length === 0 ? (
-          <p className="text-gray-500">Nenhuma operação registrada ainda.</p>
-        ) : (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-800 text-gray-400">
-                <tr>
-                  <th className="p-4">Data / Hora</th>
-                  <th className="p-4">Ativo</th>
-                  <th className="p-4">Operação</th>
-                  <th className="p-4 text-right">Qtd</th>
-                  <th className="p-4 text-right">Preço Unit.</th>
-                  <th className="p-4 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {extrato.map((op) => (
-                  <tr key={op.id} className="hover:bg-gray-800/50">
-                    <td className="p-4 text-gray-400">
-                      {new Date(op.executada_em).toLocaleString("pt-BR")}
-                    </td>
-                    <td className="p-4 font-bold text-gray-200">{op.ticker}</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        op.tipo === "COMPRA" ? "bg-emerald-900 text-emerald-400" : "bg-red-900 text-red-400"
-                      }`}>
-                        {op.tipo}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">{parseFloat(op.quantidade)}</td>
-                    <td className="p-4 text-right">R$ {parseFloat(op.preco_unitario).toFixed(2)}</td>
-                    <td className="p-4 text-right font-medium">
-                      R$ {(parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {loading ? (
+        <div className="space-y-8 animate-pulse">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-[350px]"></div>
+            <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl h-[350px]"></div>
           </div>
-        )}
-      </section>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl h-[200px]"></div>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            {/* FORMULÁRIO DE OPERAÇÃO */}
+            <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-fit">
+              <h2 className="text-lg font-semibold mb-4 text-gray-200">Simular Operação</h2>
+              
+              {msgSucesso && <div className="bg-emerald-900/50 text-emerald-400 p-3 rounded mb-4 text-sm">{msgSucesso}</div>}
+              {msgErro && <div className="bg-red-900/50 text-red-400 p-3 rounded mb-4 text-sm">{msgErro}</div>}
+
+              <form onSubmit={handleOperar} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Ativo (Ticker)</label>
+                  <input type="text" value={ticker} onChange={e => setTicker(e.target.value)} required
+                    className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Tipo</label>
+                  <select value={tipo} onChange={e => setTipo(e.target.value as "COMPRA" | "VENDA")}
+                    className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500">
+                    <option value="COMPRA">COMPRA</option>
+                    <option value="VENDA">VENDA</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Qtd</label>
+                    <input type="number" step="1" min="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} required
+                      className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Preço (R$)</label>
+                    <input type="number" step="0.01" min="0.01" value={preco} onChange={e => setPreco(e.target.value)} required
+                      className="w-full bg-gray-950 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-emerald-500" />
+                  </div>
+                </div>
+                <button type="submit" disabled={enviando}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50">
+                  {enviando ? "Enviando..." : "Executar Ordem"}
+                </button>
+              </form>
+            </section>
+
+            {/* TABELA DE POSIÇÕES (Desktop) */}
+            <section className="lg:col-span-2">
+              <h2 className="text-xl font-semibold mb-4 text-gray-300">Minhas Posições</h2>
+              
+              {detalhe?.posicoes.length === 0 ? (
+                <p className="text-gray-500">Nenhuma ação em custódia.</p>
+              ) : (
+                <>
+                  {/* DESKTOP TABLE */}
+                  <div className="hidden md:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                    <table className="w-full text-left text-sm whitespace-nowrap">
+                      <thead className="bg-gray-800 text-gray-400">
+                        <tr>
+                          <th className="p-4">Ativo</th>
+                          <th className="p-4 text-right">Qtd</th>
+                          <th className="p-4 text-right">Custo Médio</th>
+                          <th className="p-4 text-right">Cotação Atual</th>
+                          <th className="p-4 text-right">Valor Atual</th>
+                          <th className="p-4 text-right">Rentabilidade</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-800">
+                        {detalhe?.posicoes.map((pos) => (
+                          <tr key={pos.ativo_id} className="hover:bg-gray-800/50">
+                            <td className="p-4">
+                              <span className="font-bold text-emerald-500 text-base">{pos.ticker}</span>
+                              <p className="text-xs text-gray-500 truncate max-w-[150px]">{pos.nome}</p>
+                            </td>
+                            <td className="p-4 text-right">{pos.quantidade}</td>
+                            <td className="p-4 text-right text-gray-400">R$ {pos.preco_medio.toFixed(2)}</td>
+                            <td className="p-4 text-right font-medium">R$ {pos.preco_atual.toFixed(2)}</td>
+                            <td className="p-4 text-right font-medium">R$ {pos.valor_atual.toFixed(2)}</td>
+                            <td className={`p-4 text-right font-bold ${pos.lucro_prejuizo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                              <div className="flex flex-col items-end">
+                                <span>{pos.lucro_prejuizo >= 0 ? "+" : ""}R$ {pos.lucro_prejuizo.toFixed(2)}</span>
+                                <span className="text-xs font-normal opacity-80">({pos.rentabilidade_pct >= 0 ? "+" : ""}{pos.rentabilidade_pct.toFixed(2)}%)</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* MOBILE CARDS */}
+                  <div className="md:hidden space-y-4">
+                    {detalhe?.posicoes.map((pos) => (
+                      <div key={pos.ativo_id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <span className="font-bold text-emerald-500 text-lg">{pos.ticker}</span>
+                            <p className="text-xs text-gray-500">{pos.nome}</p>
+                          </div>
+                          <div className={`text-right ${pos.lucro_prejuizo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                            <p className="font-bold">{pos.lucro_prejuizo >= 0 ? "+" : ""}R$ {pos.lucro_prejuizo.toFixed(2)}</p>
+                            <p className="text-xs">({pos.rentabilidade_pct >= 0 ? "+" : ""}{pos.rentabilidade_pct.toFixed(2)}%)</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-y-2 text-sm">
+                          <div className="text-gray-400">Qtd: <span className="text-white">{pos.quantidade}</span></div>
+                          <div className="text-gray-400 text-right">Custo: <span className="text-white">R$ {pos.preco_medio.toFixed(2)}</span></div>
+                          <div className="text-gray-400">Atual: <span className="text-white">R$ {pos.preco_atual.toFixed(2)}</span></div>
+                          <div className="text-gray-400 text-right">Total: <span className="text-white">R$ {pos.valor_atual.toFixed(2)}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
+
+          {/* EXTRATO */}
+          <section className="mt-8 md:mt-12">
+            <h2 className="text-xl font-semibold mb-4 text-gray-300">Extrato de Operações</h2>
+            
+            {extrato.length === 0 ? (
+              <p className="text-gray-500">Nenhuma operação registrada ainda.</p>
+            ) : (
+              <>
+                {/* DESKTOP TABLE */}
+                <div className="hidden md:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-800 text-gray-400">
+                      <tr>
+                        <th className="p-4">Data / Hora</th>
+                        <th className="p-4">Ativo</th>
+                        <th className="p-4">Operação</th>
+                        <th className="p-4 text-right">Qtd</th>
+                        <th className="p-4 text-right">Preço Unit.</th>
+                        <th className="p-4 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {extrato.map((op) => (
+                        <tr key={op.id} className="hover:bg-gray-800/50">
+                          <td className="p-4 text-gray-400">{new Date(op.executada_em).toLocaleString("pt-BR")}</td>
+                          <td className="p-4 font-bold text-gray-200">{op.ticker}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${op.tipo === "COMPRA" ? "bg-emerald-900 text-emerald-400" : "bg-red-900 text-red-400"}`}>
+                              {op.tipo}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right">{parseFloat(op.quantidade)}</td>
+                          <td className="p-4 text-right">R$ {parseFloat(op.preco_unitario).toFixed(2)}</td>
+                          <td className="p-4 text-right font-medium">R$ {(parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* MOBILE CARDS */}
+                <div className="md:hidden space-y-4">
+                  {extrato.map((op) => (
+                    <div key={op.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-bold text-gray-200 text-lg">{op.ticker}</span>
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${op.tipo === "COMPRA" ? "bg-emerald-900 text-emerald-400" : "bg-red-900 text-red-400"}`}>
+                          {op.tipo}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-4">{new Date(op.executada_em).toLocaleString("pt-BR")}</p>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">{parseFloat(op.quantidade)} un. x R$ {parseFloat(op.preco_unitario).toFixed(2)}</span>
+                        <span className="font-semibold">R$ {(parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
 
 export default function DetalheCarteira() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">Carregando dados...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">Carregando...</div>}>
       <CarteiraContent />
     </Suspense>
   );

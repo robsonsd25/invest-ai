@@ -23,21 +23,7 @@ export default function NoticiasPage() {
     carregar();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p className="animate-pulse text-xl">Carregando notícias do mercado...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-red-500 flex items-center justify-center">
-        <p>Erro: {error}. O backend está rodando?</p>
-      </div>
-    );
-  }
+  if (error) return <div className="min-h-screen bg-gray-950 text-red-500 flex items-center justify-center">Erro: {error}</div>;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white p-8">
@@ -49,7 +35,21 @@ export default function NoticiasPage() {
         <p className="text-gray-400 mt-1">Últimas atualizações financeiras</p>
       </header>
 
-      {noticias.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-[250px] animate-pulse flex flex-col">
+              <div className="flex justify-between mb-4">
+                <div className="h-6 bg-gray-800 rounded w-1/3"></div>
+                <div className="h-6 bg-gray-800 rounded w-1/4"></div>
+              </div>
+              <div className="h-6 bg-gray-800 rounded w-full mb-2"></div>
+              <div className="h-6 bg-gray-800 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-800 rounded w-full mt-auto"></div>
+            </div>
+          ))}
+        </div>
+      ) : noticias.length === 0 ? (
         <div className="text-center py-20 text-gray-500">
           <p>Nenhuma notícia encontrada no banco.</p>
           <p className="text-sm mt-2">Rode `python app\importador_noticias.py` no backend para importar.</p>
@@ -78,7 +78,7 @@ export default function NoticiasPage() {
               </h3>
               
               <p className="text-sm text-gray-400 line-clamp-3 mt-auto pt-4 border-t border-gray-800">
-                {noticia.resumo?.replace(/<[^>]*>?/gm, '')} {/* Remove tags HTML do resumo */}
+                {noticia.resumo?.replace(/<[^>]*>?/gm, '')}
               </p>
             </a>
           ))}
