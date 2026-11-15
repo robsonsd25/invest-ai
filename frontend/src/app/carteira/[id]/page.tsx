@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useParams } from "next/navigation";
 import { getPosicoes, executarOperacao, getExtrato, CarteiraDetalhe, OperacaoExtrato } from "@/lib/api";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 function CarteiraContent() {
   const params = useParams();
@@ -19,8 +20,6 @@ function CarteiraContent() {
   const [quantidade, setQuantidade] = useState("10");
   const [preco, setPreco] = useState("38.50");
   const [enviando, setEnviando] = useState(false);
-  const [msgSucesso, setMsgSucesso] = useState<string | null>(null);
-  const [msgErro, setMsgErro] = useState<string | null>(null);
 
   const carregarDados = useCallback(async () => {
     try {
@@ -44,8 +43,6 @@ function CarteiraContent() {
   async function handleOperar(e: React.FormEvent) {
     e.preventDefault();
     setEnviando(true);
-    setMsgErro(null);
-    setMsgSucesso(null);
 
     try {
       await executarOperacao(carteiraId, {
@@ -55,10 +52,10 @@ function CarteiraContent() {
         preco_unitario: parseFloat(preco),
       });
       
-      setMsgSucesso(`Ordem de ${tipo} executada com sucesso!`);
+      toast.success(`Ordem de ${tipo} executada com sucesso!`);
       await carregarDados();
     } catch (err: any) {
-      setMsgErro(err.message);
+      toast.error(err.message);
     } finally {
       setEnviando(false);
     }
@@ -82,7 +79,7 @@ function CarteiraContent() {
           {loading ? (
             <div className="h-8 bg-gray-800 rounded w-32 animate-pulse mt-1"></div>
           ) : (
-            <p className="text-2xl font-bold text-emerald-400">R$ {detalhe?.saldo_caixa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold text-emerald-400 tabular-nums">R$ {detalhe?.saldo_caixa.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
           )}
         </div>
       </header>
@@ -102,9 +99,6 @@ function CarteiraContent() {
             <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 h-fit">
               <h2 className="text-lg font-semibold mb-4 text-gray-200">Simular Operação</h2>
               
-              {msgSucesso && <div className="bg-emerald-900/50 text-emerald-400 p-3 rounded mb-4 text-sm">{msgSucesso}</div>}
-              {msgErro && <div className="bg-red-900/50 text-red-400 p-3 rounded mb-4 text-sm">{msgErro}</div>}
-
               <form onSubmit={handleOperar} className="space-y-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Ativo (Ticker)</label>
@@ -138,7 +132,7 @@ function CarteiraContent() {
               </form>
             </section>
 
-            {/* TABELA DE POSIÇÕES (Desktop) */}
+            {/* TABELA DE POSIÇÕES */}
             <section className="lg:col-span-2">
               <h2 className="text-xl font-semibold mb-4 text-gray-300">Minhas Posições</h2>
               
@@ -146,7 +140,6 @@ function CarteiraContent() {
                 <p className="text-gray-500">Nenhuma ação em custódia.</p>
               ) : (
                 <>
-                  {/* DESKTOP TABLE */}
                   <div className="hidden md:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
                     <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead className="bg-gray-800 text-gray-400">
@@ -166,12 +159,12 @@ function CarteiraContent() {
                               <span className="font-bold text-emerald-500 text-base">{pos.ticker}</span>
                               <p className="text-xs text-gray-500 truncate max-w-[150px]">{pos.nome}</p>
                             </td>
-                            <td className="p-4 text-right">{pos.quantidade}</td>
-                            <td className="p-4 text-right text-gray-400">R$ {pos.preco_medio.toFixed(2)}</td>
-                            <td className="p-4 text-right font-medium">R$ {pos.preco_atual.toFixed(2)}</td>
-                            <td className="p-4 text-right font-medium">R$ {pos.valor_atual.toFixed(2)}</td>
+                            <td className="p-4 text-right tabular-nums">{pos.quantidade}</td>
+                            <td className="p-4 text-right text-gray-400 tabular-nums">R$ {pos.preco_medio.toFixed(2)}</td>
+                            <td className="p-4 text-right font-medium tabular-nums">R$ {pos.preco_atual.toFixed(2)}</td>
+                            <td className="p-4 text-right font-medium tabular-nums">R$ {pos.valor_atual.toFixed(2)}</td>
                             <td className={`p-4 text-right font-bold ${pos.lucro_prejuizo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                              <div className="flex flex-col items-end">
+                              <div className="flex flex-col items-end tabular-nums">
                                 <span>{pos.lucro_prejuizo >= 0 ? "+" : ""}R$ {pos.lucro_prejuizo.toFixed(2)}</span>
                                 <span className="text-xs font-normal opacity-80">({pos.rentabilidade_pct >= 0 ? "+" : ""}{pos.rentabilidade_pct.toFixed(2)}%)</span>
                               </div>
@@ -182,7 +175,6 @@ function CarteiraContent() {
                     </table>
                   </div>
 
-                  {/* MOBILE CARDS */}
                   <div className="md:hidden space-y-4">
                     {detalhe?.posicoes.map((pos) => (
                       <div key={pos.ativo_id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -191,12 +183,12 @@ function CarteiraContent() {
                             <span className="font-bold text-emerald-500 text-lg">{pos.ticker}</span>
                             <p className="text-xs text-gray-500">{pos.nome}</p>
                           </div>
-                          <div className={`text-right ${pos.lucro_prejuizo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          <div className={`text-right tabular-nums ${pos.lucro_prejuizo >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                             <p className="font-bold">{pos.lucro_prejuizo >= 0 ? "+" : ""}R$ {pos.lucro_prejuizo.toFixed(2)}</p>
                             <p className="text-xs">({pos.rentabilidade_pct >= 0 ? "+" : ""}{pos.rentabilidade_pct.toFixed(2)}%)</p>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-y-2 text-sm">
+                        <div className="grid grid-cols-2 gap-y-2 text-sm tabular-nums">
                           <div className="text-gray-400">Qtd: <span className="text-white">{pos.quantidade}</span></div>
                           <div className="text-gray-400 text-right">Custo: <span className="text-white">R$ {pos.preco_medio.toFixed(2)}</span></div>
                           <div className="text-gray-400">Atual: <span className="text-white">R$ {pos.preco_atual.toFixed(2)}</span></div>
@@ -210,7 +202,6 @@ function CarteiraContent() {
             </section>
           </div>
 
-          {/* EXTRATO */}
           <section className="mt-8 md:mt-12">
             <h2 className="text-xl font-semibold mb-4 text-gray-300">Extrato de Operações</h2>
             
@@ -218,7 +209,6 @@ function CarteiraContent() {
               <p className="text-gray-500">Nenhuma operação registrada ainda.</p>
             ) : (
               <>
-                {/* DESKTOP TABLE */}
                 <div className="hidden md:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-gray-800 text-gray-400">
@@ -234,23 +224,22 @@ function CarteiraContent() {
                     <tbody className="divide-y divide-gray-800">
                       {extrato.map((op) => (
                         <tr key={op.id} className="hover:bg-gray-800/50">
-                          <td className="p-4 text-gray-400">{new Date(op.executada_em).toLocaleString("pt-BR")}</td>
+                          <td className="p-4 text-gray-400 tabular-nums">{new Date(op.executada_em).toLocaleString("pt-BR")}</td>
                           <td className="p-4 font-bold text-gray-200">{op.ticker}</td>
                           <td className="p-4">
                             <span className={`px-2 py-1 rounded text-xs font-bold ${op.tipo === "COMPRA" ? "bg-emerald-900 text-emerald-400" : "bg-red-900 text-red-400"}`}>
                               {op.tipo}
                             </span>
                           </td>
-                          <td className="p-4 text-right">{parseFloat(op.quantidade)}</td>
-                          <td className="p-4 text-right">R$ {parseFloat(op.preco_unitario).toFixed(2)}</td>
-                          <td className="p-4 text-right font-medium">R$ {(parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)}</td>
+                          <td className="p-4 text-right tabular-nums">{parseFloat(op.quantidade)}</td>
+                          <td className="p-4 text-right tabular-nums">R$ {parseFloat(op.preco_unitario).toFixed(2)}</td>
+                          <td className="p-4 text-right font-medium tabular-nums">R$ {(parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
 
-                {/* MOBILE CARDS */}
                 <div className="md:hidden space-y-4">
                   {extrato.map((op) => (
                     <div key={op.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
@@ -260,8 +249,8 @@ function CarteiraContent() {
                           {op.tipo}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500 mb-4">{new Date(op.executada_em).toLocaleString("pt-BR")}</p>
-                      <div className="flex justify-between text-sm">
+                      <p className="text-xs text-gray-500 mb-4 tabular-nums">{new Date(op.executada_em).toLocaleString("pt-BR")}</p>
+                      <div className="flex justify-between text-sm tabular-nums">
                         <span className="text-gray-400">{parseFloat(op.quantidade)} un. x R$ {parseFloat(op.preco_unitario).toFixed(2)}</span>
                         <span className="font-semibold">R$ {(parseFloat(op.quantidade) * parseFloat(op.preco_unitario)).toFixed(2)}</span>
                       </div>

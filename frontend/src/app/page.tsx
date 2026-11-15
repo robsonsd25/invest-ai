@@ -37,7 +37,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-8">
+    <div className="min-h-screen bg-gray-950 text-white p-4 md:p-8">
       <header className="mb-12 border-b border-gray-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
@@ -98,14 +98,16 @@ export default function Dashboard() {
                   
                   <div className="mt-6">
                     <p className="text-sm text-gray-400">Saldo em Caixa</p>
-                    <p className="text-3xl font-bold text-emerald-400 mt-1">
+                    <p className="text-3xl font-bold text-emerald-400 mt-1 tabular-nums">
                       R$ {parseFloat(carteira.saldo_caixa).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   
                   <div className="mt-4 flex justify-between text-sm text-gray-500">
                     <span>Capital Inicial:</span>
-                    <span>R$ {parseFloat(carteira.capital_inicial).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    <span className="tabular-nums">
+                      R$ {parseFloat(carteira.capital_inicial).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
                 </div>
               </Link>
