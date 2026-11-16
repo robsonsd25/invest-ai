@@ -26,12 +26,13 @@ from app.models import (  # noqa: E402
 )
 
 # ==========================================
-# REFERENCIA GLOBAL (idempotente)
+# REFERENCIA GLOBAL
 # ==========================================
 MERCADOS = [
     {"codigo": "B3", "nome": "B3 - Brasil Bolsa Balcao", "pais": "BR", "moeda": "BRL", "fuso_horario": "America/Sao_Paulo"},
     {"codigo": "NYSE", "nome": "New York Stock Exchange", "pais": "US", "moeda": "USD", "fuso_horario": "America/New_York"},
     {"codigo": "NASDAQ", "nome": "NASDAQ", "pais": "US", "moeda": "USD", "fuso_horario": "America/New_York"},
+    {"codigo": "CRYPTO", "nome": "Criptomoedas", "pais": "US", "moeda": "USD", "fuso_horario": "UTC"},
 ]
 
 TIPOS_ATIVO = [
@@ -39,6 +40,7 @@ TIPOS_ATIVO = [
     {"codigo": "FII", "nome": "Fundo de Investimento Imobiliario"},
     {"codigo": "ETF", "nome": "Exchange Traded Fund"},
     {"codigo": "BDR", "nome": "Brazilian Depositary Receipt"},
+    {"codigo": "CRIPTO", "nome": "Criptomoeda"},
 ]
 
 PERFIS_RISCO = [
@@ -53,7 +55,7 @@ PERFIS_RISCO = [
      "max_drawdown_pct": Decimal("20.00"), "max_exposicao_pct": Decimal("80.00")},
 ]
 
-# LISTA EXPANDIDA PARA 30 ATIVOS
+# LISTA EXPANDIDA COM CRIPTOMOEDAS
 ATIVOS = [
     # --- B3 (15 ativos) ---
     {"ticker": "PETR4", "nome": "Petroleo Brasileiro S.A. - Petrobras PN", "mercado": "B3", "tipo": "ACAO", "setor": "Petroleo e Gas"},
@@ -90,6 +92,14 @@ ATIVOS = [
     {"ticker": "AMD", "nome": "Advanced Micro Devices Inc.", "mercado": "NYSE", "tipo": "ACAO", "setor": "Semicondutores"},
     {"ticker": "INTC", "nome": "Intel Corporation", "mercado": "NYSE", "tipo": "ACAO", "setor": "Semicondutores"},
     {"ticker": "KO", "nome": "The Coca-Cola Company", "mercado": "NYSE", "tipo": "ACAO", "setor": "Bebidas"},
+
+    # --- CRYPTO (6 ativos) ---
+    {"ticker": "BTC-USD", "nome": "Bitcoin", "mercado": "CRYPTO", "tipo": "CRIPTO", "setor": "Criptomoeda"},
+    {"ticker": "ETH-USD", "nome": "Ethereum", "mercado": "CRYPTO", "tipo": "CRIPTO", "setor": "Criptomoeda"},
+    {"ticker": "SOL-USD", "nome": "Solana", "mercado": "CRYPTO", "tipo": "CRIPTO", "setor": "Criptomoeda"},
+    {"ticker": "ADA-USD", "nome": "Cardano", "mercado": "CRYPTO", "tipo": "CRIPTO", "setor": "Criptomoeda"},
+    {"ticker": "XRP-USD", "nome": "XRP", "mercado": "CRYPTO", "tipo": "CRIPTO", "setor": "Criptomoeda"},
+    {"ticker": "DOGE-USD", "nome": "Dogecoin", "mercado": "CRYPTO", "tipo": "CRIPTO", "setor": "Criptomoeda"},
 ]
 
 
@@ -135,7 +145,15 @@ def _seed_ativos(db, org_id: int) -> list[Ativo]:
 
 
 def _yf_ticker(ticker: str, mercado_codigo: str) -> str:
-    return f"{ticker}.SA" if mercado_codigo == "B3" else ticker
+    """
+    Ajusta o ticker para o formato do Yahoo Finance.
+    - B3: sufixo .SA (ex.: PETR4 -> PETR4.SA)
+    - CRYPTO: mantém o formato (ex.: BTC-USD)
+    - US: sem sufixo
+    """
+    if mercado_codigo == "B3":
+        return f"{ticker}.SA"
+    return ticker  # CRYPTO e US já estão no formato correto
 
 
 def _seed_cotacoes(db, ativos: list[Ativo], org_id: int, periodo: str = "1y") -> int:
