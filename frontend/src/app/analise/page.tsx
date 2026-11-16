@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import { ApexOptions, ApexAxisChartSeries } from "apexcharts";
 import toast from "react-hot-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useLivePrices, useElapsedTime } from "@/hooks/useLivePrices";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -29,6 +30,14 @@ function AnaliseContent() {
   const [carteiraDetalhe, setCarteiraDetalhe] = useState<CarteiraDetalhe | null>(null);
   const [quantidade, setQuantidade] = useState<string>("10");
   const [enviandoOrdem, setEnviandoOrdem] = useState(false);
+
+  // Hook de preços ao vivo (atualiza a cada 2 minutos)
+  const { prices: livePrices, lastUpdate } = useLivePrices(
+    indicadores ? [indicadores.ticker] : [],
+    120000
+  );
+  const secondsAgo = useElapsedTime(lastUpdate);
+  const liveQuote = indicadores ? livePrices[indicadores.ticker] : null;
 
   useEffect(() => {
     if (!carteiraSelecionada) return;
@@ -89,8 +98,11 @@ function AnaliseContent() {
     const qtd = parseFloat(quantidade);
     if (isNaN(qtd) || qtd <= 0) { toast.error("Quantidade inválida."); return; }
 
+    // Prefere preço ao vivo se disponível
+    const precoExecucao = liveQuote?.price ?? indicadores.fechamento;
+
     if (tipo === "COMPRA") {
-      const custo = qtd * indicadores.fechamento;
+      const custo = qtd * precoExecucao;
       if (carteiraDetalhe && custo > carteiraDetalhe.saldo_caixa) {
         toast.error(`Saldo insuficiente. Necessário: R$ ${custo.toFixed(2)}`);
         return;
@@ -106,7 +118,7 @@ function AnaliseContent() {
 
     setEnviandoOrdem(true);
     try {
-      await executarOperacao(carteiraSelecionada, { ticker: indicadores.ticker, tipo, quantidade: qtd, preco_unitario: indicadores.fechamento });
+      await executarOperacao(carteiraSelecionada, { ticker: indicadores.ticker, tipo, quantidade: qtd, preco_unitario: precoExecucao });
       toast.success(`Ordem de ${tipo} de ${qtd} ${indicadores.ticker} executada!`);
       await recarregarCarteira();
     } catch (err: any) { toast.error(err.message); } finally { setEnviandoOrdem(false); }
@@ -118,7 +130,8 @@ function AnaliseContent() {
   }
   function definirMaxCompra() {
     if (!indicadores || !carteiraDetalhe) return;
-    const max = Math.floor(carteiraDetalhe.saldo_caixa / indicadores.fechamento);
+    const precoRef = liveQuote?.price ?? indicadores.fechamento;
+    const max = Math.floor(carteiraDetalhe.saldo_caixa / precoRef);
     setQuantidade(max.toString());
   }
   function definirMaxVenda() {
@@ -130,11 +143,13 @@ function AnaliseContent() {
   const calc = useMemo(() => {
     if (!indicadores) return null;
     const qtd = parseFloat(quantidade) || 0;
-    const total = qtd * indicadores.fechamento;
+    const precoRef = liveQuote?.price ?? indicadores.fechamento;
+    const total = qtd * precoRef;
     const saldoAtual = carteiraDetalhe?.saldo_caixa || 0;
     const posAtual = carteiraDetalhe?.posicoes.find(p => p.ticker === indicadores.ticker);
     return {
       total,
+      precoRef,
       saldoAtual,
       saldoAposCompra: saldoAtual - total,
       saldoAposVenda: saldoAtual + total,
@@ -145,7 +160,7 @@ function AnaliseContent() {
       temSaldo: total <= saldoAtual,
       temAcoes: qtd <= (posAtual?.quantidade || 0),
     };
-  }, [indicadores, quantidade, carteiraDetalhe]);
+  }, [indicadores, quantidade, carteiraDetalhe, liveQuote]);
 
   const precosFechamento = cotacoes.map(c => parseFloat(c.fechamento || "0"));
   const datas = cotacoes.map(c => new Date(c.data).getTime());
@@ -164,7 +179,6 @@ function AnaliseContent() {
     return emaArray;
   }
 
-  // CORREÇÃO DE TIPAGEM DO GRÁFICO AQUI
   const chartSeries: ApexAxisChartSeries = [
     { name: "Preço", type: "candlestick", data: cotacoes.map(c => ({ x: new Date(c.data).getTime(), y: [parseFloat(c.abertura||"0"), parseFloat(c.maxima||"0"), parseFloat(c.minima||"0"), parseFloat(c.fechamento||"0")] })) },
     { name: "SMA 20", type: "line", data: calcularSMA(precosFechamento, 20).map((val, i) => ({ x: datas[i], y: val })) },
@@ -204,26 +218,50 @@ function AnaliseContent() {
         <div className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
+            {/* CARD INDICADORES COM AO VIVO */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 relative">
               <button onClick={toggleFavorito} className="absolute top-6 right-6 text-2xl hover:scale-110 transition-transform">
                 {isFavorito ? "⭐" : "☆"}
               </button>
-              <div className="flex justify-between items-start mb-6 pr-8">
+              <div className="flex justify-between items-start mb-4 pr-8">
                 <div>
                   <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-500">{indicadores.ticker}</h2>
                   <p className="text-gray-500 dark:text-gray-400 text-sm truncate max-w-[150px]">{indicadores.nome}</p>
                 </div>
               </div>
-              <div className="text-left mb-6">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Fechamento</p>
-                <p className="text-3xl font-bold tabular-nums">R$ {indicadores.fechamento.toFixed(2)}</p>
+
+              {/* PREÇO AO VIVO */}
+              <div className="text-left mb-4">
+                {liveQuote ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-xs font-bold text-emerald-500">AO VIVO</span>
+                      <span className={`text-xs font-semibold tabular-nums ${liveQuote.change_pct >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {liveQuote.change_pct >= 0 ? '▲' : '▼'} {Math.abs(liveQuote.change_pct).toFixed(2)}%
+                      </span>
+                    </div>
+                    <p className="text-3xl font-bold tabular-nums">R$ {liveQuote.price.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500 mt-1 tabular-nums">
+                      Fechamento D-1: R$ {indicadores.fechamento.toFixed(2)}
+                      {secondsAgo !== null && secondsAgo < 60 && <span className="text-emerald-500"> • atualizado agora</span>}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Fechamento</p>
+                    <p className="text-3xl font-bold tabular-nums">R$ {indicadores.fechamento.toFixed(2)}</p>
+                  </>
+                )}
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded"><p className="text-gray-500 text-xs">RSI (14)</p><p className="text-lg font-semibold">{indicadores.rsi_14?.toFixed(2) || "N/A"}</p></div>
                 <div className="bg-gray-50 dark:bg-gray-950 p-3 rounded"><p className="text-gray-500 text-xs">MACD</p><p className={`text-lg font-semibold ${indicadores.macd_histograma && indicadores.macd_histograma > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{indicadores.macd_histograma?.toFixed(4) || "N/A"}</p></div>
               </div>
             </div>
 
+            {/* CARD SINAL */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 flex flex-col justify-center items-center text-center">
               {!analise ? (
                 <><p className="text-gray-500 dark:text-gray-400 mb-4">Gerar sinal do motor V1?</p>
@@ -235,6 +273,7 @@ function AnaliseContent() {
               )}
             </div>
 
+            {/* CARD SUA POSIÇÃO */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Sua Posição</h2>
               {calc && calc.posAtual > 0 ? (
@@ -249,7 +288,7 @@ function AnaliseContent() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Valor Atual</span>
-                    <span className="font-bold tabular-nums">R$ {(calc.posAtual * indicadores.fechamento).toFixed(2)}</span>
+                    <span className="font-bold tabular-nums">R$ {(calc.posAtual * calc.precoRef).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm pt-3 border-t border-gray-200 dark:border-gray-800">
                     <span className="text-gray-500">Lucro/Prejuízo</span>
@@ -267,6 +306,7 @@ function AnaliseContent() {
 
           </div>
 
+          {/* MESA DE OPERACOES */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8">
             <h2 className="text-2xl font-bold mb-6">💼 Mesa de Operações</h2>
 
@@ -313,8 +353,8 @@ function AnaliseContent() {
 
                 <div className="bg-gray-50 dark:bg-gray-950 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-500">Preço Unitário</span>
-                    <span className="font-semibold tabular-nums">R$ {indicadores.fechamento.toFixed(2)}</span>
+                    <span className="text-gray-500">Preço Unitário {liveQuote && <span className="text-emerald-500 text-xs">(ao vivo)</span>}</span>
+                    <span className="font-semibold tabular-nums">R$ {(calc?.precoRef || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-gray-500">Quantidade</span>

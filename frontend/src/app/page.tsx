@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import dynamic from "next/dynamic";
 import { ApexOptions, ApexAxisChartSeries } from "apexcharts";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -21,6 +22,15 @@ export default function Dashboard() {
 
   const [mostrarTodasCompras, setMostrarTodasCompras] = useState(false);
   const [mostrarTodasVendas, setMostrarTodasVendas] = useState(false);
+
+  // Lista de tickers para monitorar ao vivo (top 3 compras + top 3 vendas + favoritos)
+  const tickersAoVivo = [
+    ...(radar?.compra.slice(0, 3).map(i => i.ticker) || []),
+    ...(radar?.venda.slice(0, 3).map(i => i.ticker) || []),
+    ...favoritos.map(f => f.ticker),
+  ].filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 10);
+
+  const { prices: livePrices } = useLivePrices(tickersAoVivo, 120000);
 
   useEffect(() => {
     const token = getToken();
@@ -109,7 +119,13 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
             
             <section className="lg:col-span-2">
-              <h2 className="text-xl font-semibold mb-4">Top Oportunidades do Dia</h2>
+              <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-xl font-semibold">Top Oportunidades do Dia</h2>
+                <span className="flex items-center gap-1 text-xs text-emerald-500">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  ao vivo
+                </span>
+              </div>
               {radar && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm flex flex-col">
@@ -122,12 +138,24 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className={`space-y-3 ${mostrarTodasCompras ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
-                      {radar.compra.slice(0, mostrarTodasCompras ? undefined : 3).map((item, index) => (
-                        <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-emerald-500/50 transition-colors">
-                          <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
-                          <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-emerald-500">RSI: {item.rsi_14?.toFixed(1)}</p></div>
-                        </Link>
-                      ))}
+                      {radar.compra.slice(0, mostrarTodasCompras ? undefined : 3).map((item, index) => {
+                        const live = livePrices[item.ticker];
+                        return (
+                          <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-emerald-500/50 transition-colors">
+                            <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
+                            <div className="text-right">
+                              <p className="font-semibold tabular-nums">R$ {(live?.price ?? item.fechamento).toFixed(2)}</p>
+                              {live ? (
+                                <p className={`text-xs font-medium tabular-nums ${live.change_pct >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                  {live.change_pct >= 0 ? '▲' : '▼'} {Math.abs(live.change_pct).toFixed(2)}%
+                                </p>
+                              ) : (
+                                <p className="text-xs text-emerald-500">RSI: {item.rsi_14?.toFixed(1)}</p>
+                              )}
+                            </div>
+                          </Link>
+                        );
+                      })}
                       {radar.compra.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                     </div>
                   </div>
@@ -141,12 +169,24 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className={`space-y-3 ${mostrarTodasVendas ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
-                      {radar.venda.slice(0, mostrarTodasVendas ? undefined : 3).map((item, index) => (
-                        <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-red-500/50 transition-colors">
-                          <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
-                          <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-red-500">RSI: {item.rsi_14?.toFixed(1)}</p></div>
-                        </Link>
-                      ))}
+                      {radar.venda.slice(0, mostrarTodasVendas ? undefined : 3).map((item, index) => {
+                        const live = livePrices[item.ticker];
+                        return (
+                          <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-red-500/50 transition-colors">
+                            <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
+                            <div className="text-right">
+                              <p className="font-semibold tabular-nums">R$ {(live?.price ?? item.fechamento).toFixed(2)}</p>
+                              {live ? (
+                                <p className={`text-xs font-medium tabular-nums ${live.change_pct >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                  {live.change_pct >= 0 ? '▲' : '▼'} {Math.abs(live.change_pct).toFixed(2)}%
+                                </p>
+                              ) : (
+                                <p className="text-xs text-red-500">RSI: {item.rsi_14?.toFixed(1)}</p>
+                              )}
+                            </div>
+                          </Link>
+                        );
+                      })}
                       {radar.venda.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                     </div>
                   </div>
@@ -161,14 +201,24 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-500 italic text-center py-8">Você ainda não favoritou nenhum ativo.<br/>Vá na tela de Análise e clique na estrela!</p>
                 ) : (
                   <div className="space-y-3">
-                    {favoritos.map(fav => (
-                      <Link key={fav.ativo_id} href={`/analise?ticker=${fav.ticker}`} className="block bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-500/50 transition-colors">
-                        <div className="flex justify-between items-center">
-                          <div><p className="font-bold">{fav.ticker}</p><p className="text-xs text-gray-500 truncate max-w-[120px]">{fav.nome}</p></div>
-                          <p className="font-semibold tabular-nums">R$ {fav.preco_atual.toFixed(2)}</p>
-                        </div>
-                      </Link>
-                    ))}
+                    {favoritos.map(fav => {
+                      const live = livePrices[fav.ticker];
+                      return (
+                        <Link key={fav.ativo_id} href={`/analise?ticker=${fav.ticker}`} className="block bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-yellow-500/50 transition-colors">
+                          <div className="flex justify-between items-center">
+                            <div><p className="font-bold">{fav.ticker}</p><p className="text-xs text-gray-500 truncate max-w-[120px]">{fav.nome}</p></div>
+                            <div className="text-right">
+                              <p className="font-semibold tabular-nums">R$ {(live?.price ?? fav.preco_atual).toFixed(2)}</p>
+                              {live && (
+                                <p className={`text-xs font-medium tabular-nums ${live.change_pct >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                  {live.change_pct >= 0 ? '▲' : '▼'} {Math.abs(live.change_pct).toFixed(2)}%
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>
