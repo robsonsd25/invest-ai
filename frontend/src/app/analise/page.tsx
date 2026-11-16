@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { getIndicadores, gerarAnalise, getCotacoes, getCarteiras, getPosicoes, executarOperacao, getFavoritos, addFavorito, removeFavorito, Indicadores, Analise, Cotacao, Carteira, CarteiraDetalhe } from "@/lib/api";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { ApexOptions, ApexAxisChartSeries } from "apexcharts";
 import toast from "react-hot-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -29,7 +30,6 @@ function AnaliseContent() {
   const [quantidade, setQuantidade] = useState<string>("10");
   const [enviandoOrdem, setEnviandoOrdem] = useState(false);
 
-  // Busca a carteira detalhada quando o usuário troca de carteira
   useEffect(() => {
     if (!carteiraSelecionada) return;
     getPosicoes(carteiraSelecionada).then(setCarteiraDetalhe).catch(console.error);
@@ -59,7 +59,6 @@ function AnaliseContent() {
 
   useEffect(() => { if (initialTicker) buscarDados(initialTicker); }, [initialTicker]);
 
-  // Recarrega a carteira detalhada quando uma operação é feita
   async function recarregarCarteira() {
     if (!carteiraSelecionada) return;
     try {
@@ -90,7 +89,6 @@ function AnaliseContent() {
     const qtd = parseFloat(quantidade);
     if (isNaN(qtd) || qtd <= 0) { toast.error("Quantidade inválida."); return; }
 
-    // Validações locais rápidas
     if (tipo === "COMPRA") {
       const custo = qtd * indicadores.fechamento;
       if (carteiraDetalhe && custo > carteiraDetalhe.saldo_caixa) {
@@ -114,7 +112,6 @@ function AnaliseContent() {
     } catch (err: any) { toast.error(err.message); } finally { setEnviandoOrdem(false); }
   }
 
-  // QUANTIDADE RÁPIDA
   function adicionarQtd(inc: number) {
     const atual = parseFloat(quantidade) || 0;
     setQuantidade((atual + inc).toString());
@@ -130,7 +127,6 @@ function AnaliseContent() {
     if (pos) setQuantidade(pos.quantidade.toString());
   }
 
-  // CÁLCULOS DA OPERAÇÃO
   const calc = useMemo(() => {
     if (!indicadores) return null;
     const qtd = parseFloat(quantidade) || 0;
@@ -151,7 +147,6 @@ function AnaliseContent() {
     };
   }, [indicadores, quantidade, carteiraDetalhe]);
 
-  // GRÁFICO
   const precosFechamento = cotacoes.map(c => parseFloat(c.fechamento || "0"));
   const datas = cotacoes.map(c => new Date(c.data).getTime());
   
@@ -169,16 +164,17 @@ function AnaliseContent() {
     return emaArray;
   }
 
-  const chartSeries = [
+  // CORREÇÃO DE TIPAGEM DO GRÁFICO AQUI
+  const chartSeries: ApexAxisChartSeries = [
     { name: "Preço", type: "candlestick", data: cotacoes.map(c => ({ x: new Date(c.data).getTime(), y: [parseFloat(c.abertura||"0"), parseFloat(c.maxima||"0"), parseFloat(c.minima||"0"), parseFloat(c.fechamento||"0")] })) },
-    { name: "SMA 20", type: "line", data: calcularSMA(precosFechamento, 20).map((val, i) => val ? { x: datas[i], y: val } : null).filter(Boolean) },
+    { name: "SMA 20", type: "line", data: calcularSMA(precosFechamento, 20).map((val, i) => ({ x: datas[i], y: val })) },
     { name: "EMA 9", type: "line", data: calcularEMA(precosFechamento, 9).map((val, i) => ({ x: datas[i], y: val })) }
   ];
 
-  const chartOptions = {
-    chart: { type: "candlestick" as const, background: "transparent", toolbar: { show: false } },
-    theme: { mode: "dark" as const },
-    xaxis: { type: "datetime" as const },
+  const chartOptions: ApexOptions = {
+    chart: { type: "candlestick", background: "transparent", toolbar: { show: false } },
+    theme: { mode: "dark" },
+    xaxis: { type: "datetime" },
     plotOptions: { candlestick: { colors: { upward: "#10b981", downward: "#ef4444" } } },
     stroke: { width: [1, 1, 1], colors: ['#10b981', '#f59e0b', '#3b82f6'] }
   };
@@ -208,7 +204,6 @@ function AnaliseContent() {
         <div className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* CARD INDICADORES COM FAVORITO */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 relative">
               <button onClick={toggleFavorito} className="absolute top-6 right-6 text-2xl hover:scale-110 transition-transform">
                 {isFavorito ? "⭐" : "☆"}
@@ -229,7 +224,6 @@ function AnaliseContent() {
               </div>
             </div>
 
-            {/* CARD SINAL */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 flex flex-col justify-center items-center text-center">
               {!analise ? (
                 <><p className="text-gray-500 dark:text-gray-400 mb-4">Gerar sinal do motor V1?</p>
@@ -241,7 +235,6 @@ function AnaliseContent() {
               )}
             </div>
 
-            {/* INFORMAÇÕES DA SUA POSIÇÃO */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
               <h2 className="text-lg font-semibold mb-4">Sua Posição</h2>
               {calc && calc.posAtual > 0 ? (
@@ -274,13 +267,11 @@ function AnaliseContent() {
 
           </div>
 
-          {/* PAINEL DE NEGOCIAÇÃO EXPANDIDO */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 md:p-8">
             <h2 className="text-2xl font-bold mb-6">💼 Mesa de Operações</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               
-              {/* COLUNA ESQUERDA: CONFIGURAÇÃO */}
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Carteira</label>
@@ -336,7 +327,6 @@ function AnaliseContent() {
                 </div>
               </div>
 
-              {/* COLUNA DIREITA: AÇÕES E PREVISÃO */}
               <div className="space-y-4">
                 <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-lg p-4">
                   <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium mb-1">Saldo APÓS a compra</p>
@@ -375,7 +365,6 @@ function AnaliseContent() {
             </div>
           </div>
 
-          {/* GRÁFICO */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
             <h2 className="text-xl font-semibold mb-4">Histórico de Preços (60 dias)</h2>
             <div className="h-[400px] w-full">

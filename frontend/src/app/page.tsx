@@ -6,6 +6,7 @@ import { getCarteiras, getRadar, getPatrimonioGeral, getFavoritos, getEvolucaoPa
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import dynamic from "next/dynamic";
+import { ApexOptions, ApexAxisChartSeries } from "apexcharts";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -38,21 +39,21 @@ export default function Dashboard() {
 
   function handleLogout() { removeToken(); router.push("/login"); }
 
-  // Configuração do Gráfico de Evolução
-  const chartOptions = {
-    chart: { type: "area" as const, background: "transparent", toolbar: { show: false }, zoom: { enabled: false } },
-    theme: { mode: "dark" as const },
+  // CORREÇÃO DE TIPAGEM DO GRÁFICO AQUI
+  const chartOptions: ApexOptions = {
+    chart: { type: "area", background: "transparent", toolbar: { show: false }, zoom: { enabled: false } },
+    theme: { mode: "dark" },
     colors: ["#10b981"],
     dataLabels: { enabled: false },
-    stroke: { curve: "smooth" as const, width: 3 },
+    stroke: { curve: "smooth", width: 3 },
     fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] } },
-    xaxis: { type: "datetime" as const, labels: { style: { colors: "#9ca3af" } } },
+    xaxis: { type: "datetime", labels: { style: { colors: "#9ca3af" } } },
     yaxis: { labels: { style: { colors: "#9ca3af" }, formatter: (val: number) => `R$ ${val.toLocaleString("pt-BR")}` } },
     tooltip: { theme: "dark", y: { formatter: (val: number) => `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` } },
     grid: { borderColor: "#374151", strokeDashArray: 4 }
   };
 
-  const chartSeries = [{
+  const chartSeries: ApexAxisChartSeries = [{
     name: "Patrimônio",
     data: evolucao.map(e => ({ x: new Date(e.data).getTime(), y: e.patrimonio }))
   }];
@@ -81,7 +82,6 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {/* PATRIMONIO GERAL */}
           {patrimonio && (
             <section className="mb-6">
               <div className="bg-white dark:bg-gradient-to-r dark:from-gray-900 dark:to-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm">
@@ -95,7 +95,6 @@ export default function Dashboard() {
             </section>
           )}
 
-          {/* GRAFICO DE EVOLUCAO */}
           {evolucao.length > 0 && (
             <section className="mb-10">
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm">
@@ -109,7 +108,6 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
             
-            {/* TOP OPORTUNIDADES COM EXPANSÃO */}
             <section className="lg:col-span-2">
               <h2 className="text-xl font-semibold mb-4">Top Oportunidades do Dia</h2>
               {radar && (
@@ -156,7 +154,6 @@ export default function Dashboard() {
               )}
             </section>
 
-            {/* WATCHLIST */}
             <section>
               <h2 className="text-xl font-semibold mb-4">⭐ Meus Favoritos</h2>
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm h-full max-h-[400px] overflow-y-auto">
@@ -178,7 +175,6 @@ export default function Dashboard() {
             </section>
           </div>
 
-          {/* CARTEIRAS */}
           <section>
             <h2 className="text-xl font-semibold mb-4">Minhas Carteiras Virtuais</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
