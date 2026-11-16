@@ -114,3 +114,34 @@ export async function rodarBacktest(ticker: string, estrategia: string, capitalI
   if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "Erro ao rodar backtest."); }
   return res.json();
 }
+
+
+// ==========================================
+// COTACOES AO VIVO
+// ==========================================
+export interface LiveQuote {
+  ticker: string;
+  price: number;
+  previous_close: number;
+  change_pct: number;
+  market: string;
+}
+
+export interface LiveQuotesResponse {
+  quotes: Record<string, LiveQuote>;
+  timestamp: string;
+  cache_ttl_seconds: number;
+}
+
+export async function getLivePrices(tickers: string[]): Promise<LiveQuotesResponse> {
+  if (tickers.length === 0) {
+    return { quotes: {}, timestamp: new Date().toISOString(), cache_ttl_seconds: 90 };
+  }
+  const tickerStr = tickers.join(",");
+  const res = await fetch(`${API_URL}/market/prices?tickers=${encodeURIComponent(tickerStr)}`, {
+    headers: getAuthHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error("Erro ao buscar cotacoes ao vivo.");
+  return res.json();
+}

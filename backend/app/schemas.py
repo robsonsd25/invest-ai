@@ -238,3 +238,19 @@ class BacktestResultadoOut(BaseModel):
     taxa_acerto_pct: float
     curva_patrimonio: list[BacktestPontoOut]
     operacoes: list[BacktestTradeOut]
+
+
+# ==========================================
+# COTACOES AO VIVO
+# ==========================================
+class LiveQuoteItem(BaseModel):
+    ticker: str
+    price: float
+    previous_close: float
+    change_pct: float
+    market: str
+
+class LiveQuotesOut(BaseModel):
+    quotes: dict[str, LiveQuoteItem]
+    timestamp: str
+    cache_ttl_seconds: int

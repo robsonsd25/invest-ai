@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
     analises, ativos, auth, backtesting, carteiras, cotacoes, extrato, favoritos,
-    health, indicadores, mercados, noticias, perfis, posicoes, radar, simulador,
+    health, indicadores, market, mercados, noticias, perfis, posicoes, radar, simulador,
 )
 
 app = FastAPI(
@@ -47,3 +47,4 @@ app.include_router(posicoes.router)
 app.include_router(extrato.router)
 app.include_router(favoritos.router)
 app.include_router(backtesting.router)
+app.include_router(market.router)
