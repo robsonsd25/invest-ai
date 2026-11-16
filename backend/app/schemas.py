@@ -5,9 +5,6 @@ from datetime import datetime, date
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
-# ==========================================
-# AUTENTICACAO
-# ==========================================
 class UsuarioCreate(BaseModel):
     nome: str
     email: EmailStr
@@ -37,9 +34,6 @@ class SenhaUpdate(BaseModel):
     senha_atual: str
     nova_senha: str
 
-# ==========================================
-# SISTEMA
-# ==========================================
 class HealthResponse(BaseModel):
     status: str
     backend: str
@@ -150,7 +144,6 @@ class PatrimonioGeralOut(BaseModel):
     patrimonio_total: float
     rentabilidade_total_pct: float
 
-# NOVO SCHEMA PARA O GRAFICO DE EVOLUCAO
 class EvolucaoPatrimonioOut(BaseModel):
     data: str
     patrimonio: float
@@ -208,3 +201,40 @@ class FavoritoOut(BaseModel):
     ticker: str
     nome: str
     preco_atual: float
+
+# ==========================================
+# BACKTESTING
+# ==========================================
+class BacktestRequest(BaseModel):
+    ticker: str = Field(..., description="Ticker do ativo (ex: PETR4)")
+    estrategia: str = Field(..., description="RSI, MEDIAS ou MACD")
+    capital_inicial: float = Field(default=10000.0, gt=0, description="Capital inicial em R$")
+    periodo_dias: int = Field(default=365, ge=60, le=730, description="Periodo em dias (60 a 730)")
+
+class BacktestTradeOut(BaseModel):
+    data: str
+    tipo: str
+    preco: float
+    quantidade: int
+    valor: float
+
+class BacktestPontoOut(BaseModel):
+    data: str
+    valor: float
+
+class BacktestResultadoOut(BaseModel):
+    ticker: str
+    estrategia: str
+    periodo_inicio: str
+    periodo_fim: str
+    capital_inicial: float
+    capital_final: float
+    lucro_prejuizo: float
+    rentabilidade_pct: float
+    benchmark_buy_hold_pct: float
+    num_operacoes: int
+    num_wins: int
+    num_losses: int
+    taxa_acerto_pct: float
+    curva_patrimonio: list[BacktestPontoOut]
+    operacoes: list[BacktestTradeOut]

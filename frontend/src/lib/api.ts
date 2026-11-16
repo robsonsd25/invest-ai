@@ -31,6 +31,51 @@ export interface OperacaoExtrato { id: number; ticker: string; nome_ativo: strin
 export interface Noticia { id: number; titulo: string; url: string; resumo: string; publicado_em: string; fonte_nome: string | null; }
 export interface PatrimonioGeral { saldo_caixa_total: number; valor_investido_total: number; patrimonio_total: number; rentabilidade_total_pct: number; }
 export interface PrecoAtual { ticker: string; preco_atual: number; data: string; }
+export interface Favorito { ativo_id: number; ticker: string; nome: string; preco_atual: number; }
+export interface EvolucaoPatrimonio { data: string; patrimonio: number; }
+
+// NOVOS TIPOS PARA BACKTESTING
+export interface Ativo {
+  id: number;
+  ticker: string;
+  nome: string;
+  setor: string | null;
+  ativo: boolean;
+  mercado_codigo: string;
+  mercado_nome: string;
+  tipo_codigo: string | null;
+}
+
+export interface BacktestTrade {
+  data: string;
+  tipo: string;
+  preco: number;
+  quantidade: number;
+  valor: number;
+}
+
+export interface BacktestPonto {
+  data: string;
+  valor: number;
+}
+
+export interface BacktestResultado {
+  ticker: string;
+  estrategia: string;
+  periodo_inicio: string;
+  periodo_fim: string;
+  capital_inicial: number;
+  capital_final: number;
+  lucro_prejuizo: number;
+  rentabilidade_pct: number;
+  benchmark_buy_hold_pct: number;
+  num_operacoes: number;
+  num_wins: number;
+  num_losses: number;
+  taxa_acerto_pct: number;
+  curva_patrimonio: BacktestPonto[];
+  operacoes: BacktestTrade[];
+}
 
 function getAuthHeaders() { const token = getToken(); return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }; }
 
@@ -38,6 +83,7 @@ export async function getMe(): Promise<Usuario> { const res = await fetch(`${API
 export async function alterarSenha(senhaAtual: string, novaSenha: string) { const res = await fetch(`${API_URL}/auth/me/password`, { method: "PUT", headers: getAuthHeaders(), body: JSON.stringify({ senha_atual: senhaAtual, nova_senha: novaSenha }) }); if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "Erro."); } return res.json(); }
 export async function getCarteiras(): Promise<Carteira[]> { const res = await fetch(`${API_URL}/carteiras`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
 export async function getPatrimonioGeral(): Promise<PatrimonioGeral> { const res = await fetch(`${API_URL}/carteiras/resumo-geral`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
+export async function getEvolucaoPatrimonio(): Promise<EvolucaoPatrimonio[]> { const res = await fetch(`${API_URL}/carteiras/evolucao-patrimonio?dias=30`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
 export async function getPosicoes(carteiraId: string | number): Promise<CarteiraDetalhe> { const res = await fetch(`${API_URL}/carteiras/${carteiraId}/posicoes`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
 export async function executarOperacao(carteiraId: string | number, dados: OperacaoPayload) { const res = await fetch(`${API_URL}/carteiras/${carteiraId}/operacoes`, { method: "POST", headers: getAuthHeaders(), body: JSON.stringify(dados) }); if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "Erro."); } return res.json(); }
 export async function realizarDeposito(carteiraId: string | number, valor: number) { const res = await fetch(`${API_URL}/carteiras/${carteiraId}/depositar`, { method: "POST", headers: getAuthHeaders(), body: JSON.stringify({ valor }) }); if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "Erro."); } return res.json(); }
@@ -48,19 +94,23 @@ export async function getPrecoAtual(ticker: string): Promise<PrecoAtual> { const
 export async function getRadar(): Promise<RadarResultado> { const res = await fetch(`${API_URL}/radar`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
 export async function getExtrato(carteiraId: string | number): Promise<OperacaoExtrato[]> { const res = await fetch(`${API_URL}/carteiras/${carteiraId}/extrato`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
 export async function getNoticias(): Promise<Noticia[]> { const res = await fetch(`${API_URL}/noticias`, { cache: 'no-store' }); if (!res.ok) throw new Error("Erro."); return res.json(); }
-
-export interface Favorito { ativo_id: number; ticker: string; nome: string; preco_atual: number; }
 export async function getFavoritos(): Promise<Favorito[]> { const res = await fetch(`${API_URL}/favoritos`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro"); return res.json(); }
 export async function addFavorito(ticker: string) { await fetch(`${API_URL}/favoritos/${ticker}`, { method: "POST", headers: getAuthHeaders() }); }
 export async function removeFavorito(ticker: string) { await fetch(`${API_URL}/favoritos/${ticker}`, { method: "DELETE", headers: getAuthHeaders() }); }
 
-export interface EvolucaoPatrimonio {
-  data: string;
-  patrimonio: number;
+// NOVAS FUNCOES PARA BACKTESTING
+export async function getAtivos(): Promise<Ativo[]> {
+  const res = await fetch(`${API_URL}/ativos`, { headers: getAuthHeaders(), cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao buscar ativos.");
+  return res.json();
 }
 
-export async function getEvolucaoPatrimonio(): Promise<EvolucaoPatrimonio[]> {
-  const res = await fetch(`${API_URL}/carteiras/evolucao-patrimonio?dias=30`, { headers: getAuthHeaders(), cache: 'no-store' });
-  if (!res.ok) throw new Error("Erro ao buscar evolução.");
+export async function rodarBacktest(ticker: string, estrategia: string, capitalInicial: number, periodoDias: number): Promise<BacktestResultado> {
+  const res = await fetch(`${API_URL}/backtesting/run`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ticker, estrategia, capital_inicial: capitalInicial, periodo_dias: periodoDias }),
+  });
+  if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "Erro ao rodar backtest."); }
   return res.json();
 }

@@ -39,7 +39,6 @@ export default function Dashboard() {
 
   function handleLogout() { removeToken(); router.push("/login"); }
 
-  // CORREÇÃO DE TIPAGEM DO GRÁFICO AQUI
   const chartOptions: ApexOptions = {
     chart: { type: "area", background: "transparent", toolbar: { show: false }, zoom: { enabled: false } },
     theme: { mode: "dark" },
@@ -69,6 +68,7 @@ export default function Dashboard() {
           <ThemeToggle />
           <Link href="/noticias" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100 px-3 py-2 rounded-lg text-sm font-semibold transition-colors">📰 Notícias</Link>
           <Link href="/radar" className="bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100 px-3 py-2 rounded-lg text-sm font-semibold transition-colors">🏆 Radar Completo</Link>
+          <Link href="/backtesting" className="bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-100 px-3 py-2 rounded-lg text-sm font-semibold transition-colors">🧪 Backtesting</Link>
           <Link href="/analise" className="bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-sm transition-colors">Análise &rarr;</Link>
           <Link href="/perfil" className="bg-gray-200 dark:bg-gray-800 px-3 py-2 rounded-lg text-sm transition-colors">👤 Perfil</Link>
           <button onClick={handleLogout} className="text-red-500 px-2 py-2 text-sm font-semibold">Sair</button>

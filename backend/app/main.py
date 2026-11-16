@@ -1,12 +1,11 @@
 """
 INVEST AI - Backend FastAPI.
-Fase: analise e simulacao. Sem ordens reais, sem alavancagem.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
-    analises, ativos, auth, carteiras, cotacoes, extrato, favoritos,
+    analises, ativos, auth, backtesting, carteiras, cotacoes, extrato, favoritos,
     health, indicadores, mercados, noticias, perfis, posicoes, radar, simulador,
 )
 
@@ -16,20 +15,18 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Em app/main.py
-
 app.add_middleware(
     CORSMiddleware,
-    # Lista explícita de origens permitidas.
     allow_origins=[
-        "http://localhost:3000",      # Para desenvolvimento local
-        "http://127.0.0.1:3000",      # Para desenvolvimento local
-        "https://invest-ai-livid.vercel.app"  # <-- SUA URL DA VERCEL AQUI
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://invest-ai-livid.vercel.app"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 @app.get("/", tags=["sistema"])
 def inicio():
     return {"projeto": "INVEST AI", "status": "online", "modo": "analise e simulacao"}
@@ -49,3 +46,4 @@ app.include_router(simulador.router)
 app.include_router(posicoes.router)
 app.include_router(extrato.router)
 app.include_router(favoritos.router)
+app.include_router(backtesting.router)
