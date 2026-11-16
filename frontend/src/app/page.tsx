@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getCarteiras, getRadar, getPatrimonioGeral, getFavoritos, Carteira, RadarResultado, PatrimonioGeral, Favorito, getToken, removeToken } from "@/lib/api";
+import { getCarteiras, getRadar, getPatrimonioGeral, getFavoritos, getEvolucaoPatrimonio, Carteira, RadarResultado, PatrimonioGeral, Favorito, EvolucaoPatrimonio, getToken, removeToken } from "@/lib/api";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import dynamic from "next/dynamic";
+
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export default function Dashboard() {
   const router = useRouter();
@@ -12,9 +15,9 @@ export default function Dashboard() {
   const [radar, setRadar] = useState<RadarResultado | null>(null);
   const [patrimonio, setPatrimonio] = useState<PatrimonioGeral | null>(null);
   const [favoritos, setFavoritos] = useState<Favorito[]>([]);
+  const [evolucao, setEvolucao] = useState<EvolucaoPatrimonio[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados para expandir as listas
   const [mostrarTodasCompras, setMostrarTodasCompras] = useState(false);
   const [mostrarTodasVendas, setMostrarTodasVendas] = useState(false);
 
@@ -24,14 +27,35 @@ export default function Dashboard() {
 
     async function carregar() {
       try {
-        const [c, r, p, f] = await Promise.all([getCarteiras(), getRadar(), getPatrimonioGeral(), getFavoritos()]);
-        setCarteiras(c); setRadar(r); setPatrimonio(p); setFavoritos(f);
+        const [c, r, p, f, e] = await Promise.all([
+          getCarteiras(), getRadar(), getPatrimonioGeral(), getFavoritos(), getEvolucaoPatrimonio()
+        ]);
+        setCarteiras(c); setRadar(r); setPatrimonio(p); setFavoritos(f); setEvolucao(e);
       } catch (err) { console.error(err); } finally { setLoading(false); }
     }
     carregar();
   }, [router]);
 
   function handleLogout() { removeToken(); router.push("/login"); }
+
+  // Configuração do Gráfico de Evolução
+  const chartOptions = {
+    chart: { type: "area" as const, background: "transparent", toolbar: { show: false }, zoom: { enabled: false } },
+    theme: { mode: "dark" as const },
+    colors: ["#10b981"],
+    dataLabels: { enabled: false },
+    stroke: { curve: "smooth" as const, width: 3 },
+    fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05, stops: [0, 100] } },
+    xaxis: { type: "datetime" as const, labels: { style: { colors: "#9ca3af" } } },
+    yaxis: { labels: { style: { colors: "#9ca3af" }, formatter: (val: number) => `R$ ${val.toLocaleString("pt-BR")}` } },
+    tooltip: { theme: "dark", y: { formatter: (val: number) => `R$ ${val.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` } },
+    grid: { borderColor: "#374151", strokeDashArray: 4 }
+  };
+
+  const chartSeries = [{
+    name: "Patrimônio",
+    data: evolucao.map(e => ({ x: new Date(e.data).getTime(), y: e.patrimonio }))
+  }];
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-white p-4 md:p-8 transition-colors">
@@ -59,13 +83,25 @@ export default function Dashboard() {
         <>
           {/* PATRIMONIO GERAL */}
           {patrimonio && (
-            <section className="mb-10">
+            <section className="mb-6">
               <div className="bg-white dark:bg-gradient-to-r dark:from-gray-900 dark:to-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm">
                 <p className="text-gray-500 dark:text-gray-400 font-medium mb-1">Patrimônio Total Consolidado</p>
                 <h2 className="text-4xl md:text-5xl font-black tabular-nums mb-4">R$ {patrimonio.patrimonio_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</h2>
                 <div className="flex flex-wrap gap-6 text-sm">
                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-400"></span><span className="text-gray-500">Em Caixa:</span><span className="font-semibold tabular-nums">R$ {patrimonio.saldo_caixa_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span className="text-gray-500">Investido:</span><span className="font-semibold tabular-nums">R$ {patrimonio.valor_investido_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span></div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* GRAFICO DE EVOLUCAO */}
+          {evolucao.length > 0 && (
+            <section className="mb-10">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm">
+                <h2 className="text-xl font-semibold mb-4">Evolução do Patrimônio (30 dias)</h2>
+                <div className="h-[250px] w-full">
+                  <Chart options={chartOptions} series={chartSeries} type="area" height="100%" width="100%" />
                 </div>
               </div>
             </section>
@@ -78,16 +114,11 @@ export default function Dashboard() {
               <h2 className="text-xl font-semibold mb-4">Top Oportunidades do Dia</h2>
               {radar && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* COMPRAS */}
                   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-emerald-600 dark:text-emerald-500 font-bold flex items-center gap-2">🚀 Compras</h3>
                       {radar.compra.length > 3 && (
-                        <button 
-                          onClick={() => setMostrarTodasCompras(!mostrarTodasCompras)}
-                          className="text-xs text-gray-500 hover:text-emerald-500 font-medium transition-colors"
-                        >
+                        <button onClick={() => setMostrarTodasCompras(!mostrarTodasCompras)} className="text-xs text-gray-500 hover:text-emerald-500 font-medium transition-colors">
                           {mostrarTodasCompras ? "Recolher ▲" : `Ver todos (${radar.compra.length}) ▼`}
                         </button>
                       )}
@@ -95,26 +126,18 @@ export default function Dashboard() {
                     <div className={`space-y-3 ${mostrarTodasCompras ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
                       {radar.compra.slice(0, mostrarTodasCompras ? undefined : 3).map((item, index) => (
                         <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-emerald-500/50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <span className="text-gray-400 font-bold">#{index + 1}</span>
-                            <div><p className="font-bold">{item.ticker}</p></div>
-                          </div>
+                          <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
                           <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-emerald-500">RSI: {item.rsi_14?.toFixed(1)}</p></div>
                         </Link>
                       ))}
                       {radar.compra.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                     </div>
                   </div>
-
-                  {/* VENDAS */}
                   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-red-500 font-bold flex items-center gap-2">⚠️ Vendas</h3>
                       {radar.venda.length > 3 && (
-                        <button 
-                          onClick={() => setMostrarTodasVendas(!mostrarTodasVendas)}
-                          className="text-xs text-gray-500 hover:text-red-500 font-medium transition-colors"
-                        >
+                        <button onClick={() => setMostrarTodasVendas(!mostrarTodasVendas)} className="text-xs text-gray-500 hover:text-red-500 font-medium transition-colors">
                           {mostrarTodasVendas ? "Recolher ▲" : `Ver todos (${radar.venda.length}) ▼`}
                         </button>
                       )}
@@ -122,17 +145,13 @@ export default function Dashboard() {
                     <div className={`space-y-3 ${mostrarTodasVendas ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
                       {radar.venda.slice(0, mostrarTodasVendas ? undefined : 3).map((item, index) => (
                         <Link key={item.ticker} href={`/analise?ticker=${item.ticker}`} className="flex justify-between items-center bg-gray-50 dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800 hover:border-red-500/50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <span className="text-gray-400 font-bold">#{index + 1}</span>
-                            <div><p className="font-bold">{item.ticker}</p></div>
-                          </div>
+                          <div className="flex items-center gap-3"><span className="text-gray-400 font-bold">#{index + 1}</span><div><p className="font-bold">{item.ticker}</p></div></div>
                           <div className="text-right"><p className="font-semibold tabular-nums">R$ {item.fechamento.toFixed(2)}</p><p className="text-xs text-red-500">RSI: {item.rsi_14?.toFixed(1)}</p></div>
                         </Link>
                       ))}
                       {radar.venda.length === 0 && <p className="text-sm text-gray-500 italic py-2">Nenhum ativo nesta condição hoje.</p>}
                     </div>
                   </div>
-
                 </div>
               )}
             </section>

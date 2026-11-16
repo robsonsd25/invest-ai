@@ -150,6 +150,11 @@ class PatrimonioGeralOut(BaseModel):
     patrimonio_total: float
     rentabilidade_total_pct: float
 
+# NOVO SCHEMA PARA O GRAFICO DE EVOLUCAO
+class EvolucaoPatrimonioOut(BaseModel):
+    data: str
+    patrimonio: float
+
 class CotacaoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     data: date
@@ -198,9 +203,6 @@ class NoticiaOut(BaseModel):
     publicado_em: datetime
     fonte_nome: str | None
 
-# ==========================================
-# FAVORITOS (DEVE FICAR NO FINAL)
-# ==========================================
 class FavoritoOut(BaseModel):
     ativo_id: int
     ticker: str

@@ -53,3 +53,14 @@ export interface Favorito { ativo_id: number; ticker: string; nome: string; prec
 export async function getFavoritos(): Promise<Favorito[]> { const res = await fetch(`${API_URL}/favoritos`, { headers: getAuthHeaders(), cache: 'no-store' }); if (!res.ok) throw new Error("Erro"); return res.json(); }
 export async function addFavorito(ticker: string) { await fetch(`${API_URL}/favoritos/${ticker}`, { method: "POST", headers: getAuthHeaders() }); }
 export async function removeFavorito(ticker: string) { await fetch(`${API_URL}/favoritos/${ticker}`, { method: "DELETE", headers: getAuthHeaders() }); }
+
+export interface EvolucaoPatrimonio {
+  data: string;
+  patrimonio: number;
+}
+
+export async function getEvolucaoPatrimonio(): Promise<EvolucaoPatrimonio[]> {
+  const res = await fetch(`${API_URL}/carteiras/evolucao-patrimonio?dias=30`, { headers: getAuthHeaders(), cache: 'no-store' });
+  if (!res.ok) throw new Error("Erro ao buscar evolução.");
+  return res.json();
+}
